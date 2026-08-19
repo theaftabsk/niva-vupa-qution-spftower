@@ -489,12 +489,12 @@ export default function AdminAssessmentsPage() {
                   <label><Clock size={13} /> Duration (Mins)</label>
                   <input
                     type="number"
-                    min="5"
-                    max="180"
-                    value={form.durationMins}
-                    onChange={(e) => setForm({ ...form, durationMins: Number(e.target.value) })}
-                    className="assess-form-input font-bold"
+                    value={45}
+                    disabled
+                    readOnly
+                    className="assess-form-input font-bold bg-slate-100 cursor-not-allowed opacity-90"
                   />
+                  <span className="assess-form-hint text-[10px] text-emerald-600 font-bold">Fixed 45 Mins (60 Questions)</span>
                 </div>
 
                 <div className="assess-form-group">
