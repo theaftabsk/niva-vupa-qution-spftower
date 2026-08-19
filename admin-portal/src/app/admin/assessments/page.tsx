@@ -177,7 +177,7 @@ export default function AdminAssessmentsPage() {
       activeUntil: formatDatetimeLocal(session.activeUntil),
       passingPercentage: session.passingPercentage,
       maxProctorWarnings: session.maxProctorWarnings,
-      status: session.status,
+      status: (session.status === "INACTIVE" || session.status === "DRAFT") ? session.status : "ACTIVE",
     });
     setFormError("");
     setShowEditModal(true);

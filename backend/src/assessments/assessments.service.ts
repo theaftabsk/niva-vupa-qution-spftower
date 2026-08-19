@@ -63,10 +63,17 @@ export class AssessmentsService {
     const now = new Date();
 
     return assessments.map((ass) => {
-      let computedStatus = ass.status;
-      if (ass.status !== 'INACTIVE' && ass.status !== 'DRAFT' && ass.status !== 'ARCHIVED') {
-        if (ass.activeFrom && now < new Date(ass.activeFrom)) computedStatus = 'UPCOMING';
-        else if (ass.activeUntil && now > new Date(ass.activeUntil)) computedStatus = 'EXPIRED';
+      let computedStatus = 'ACTIVE';
+      if (ass.status === 'INACTIVE' || ass.status === 'DRAFT' || ass.status === 'ARCHIVED') {
+        computedStatus = ass.status;
+      } else {
+        if (ass.activeFrom && now < new Date(ass.activeFrom)) {
+          computedStatus = 'UPCOMING';
+        } else if (ass.activeUntil && now > new Date(ass.activeUntil)) {
+          computedStatus = 'EXPIRED';
+        } else {
+          computedStatus = 'ACTIVE';
+        }
       }
 
       return {

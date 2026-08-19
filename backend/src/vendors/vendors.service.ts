@@ -52,6 +52,20 @@ export class VendorsService {
     return this.findOne(vendor.id);
   }
 
+  private computeAssessmentStatus(ass: any) {
+    let computedStatus = ass.status || 'ACTIVE';
+    const now = new Date();
+    if (computedStatus !== 'INACTIVE' && computedStatus !== 'DRAFT' && computedStatus !== 'ARCHIVED') {
+      if (ass.activeFrom && now < new Date(ass.activeFrom)) computedStatus = 'UPCOMING';
+      else if (ass.activeUntil && now > new Date(ass.activeUntil)) computedStatus = 'EXPIRED';
+      else computedStatus = 'ACTIVE';
+    }
+    return {
+      ...ass,
+      status: computedStatus,
+    };
+  }
+
   async findAll() {
     const vendors = await this.prisma.vendor.findMany({
       orderBy: { createdAt: 'desc' },
@@ -59,7 +73,7 @@ export class VendorsService {
         assignedAssessments: {
           include: {
             assessment: {
-              select: { id: true, name: true, slug: true, status: true, durationMins: true },
+              select: { id: true, name: true, slug: true, status: true, durationMins: true, activeFrom: true, activeUntil: true },
             },
           },
         },
@@ -83,7 +97,7 @@ export class VendorsService {
       creditUsed: v.creditUsed,
       totalCandidates: v._count.candidates,
       totalAssessments: v._count.assignedAssessments,
-      assignedAssessments: v.assignedAssessments.map((va) => va.assessment),
+      assignedAssessments: v.assignedAssessments.map((va) => this.computeAssessmentStatus(va.assessment)),
       createdAt: v.createdAt,
       updatedAt: v.updatedAt,
     }));
@@ -96,7 +110,7 @@ export class VendorsService {
         assignedAssessments: {
           include: {
             assessment: {
-              select: { id: true, name: true, slug: true, status: true, durationMins: true, passingPercentage: true },
+              select: { id: true, name: true, slug: true, status: true, durationMins: true, passingPercentage: true, activeFrom: true, activeUntil: true },
             },
           },
         },
@@ -122,7 +136,7 @@ export class VendorsService {
       status: vendor.status,
       creditUsed: vendor.creditUsed,
       totalCandidates: vendor._count.candidates,
-      assignedAssessments: vendor.assignedAssessments.map((va) => va.assessment),
+      assignedAssessments: vendor.assignedAssessments.map((va) => this.computeAssessmentStatus(va.assessment)),
       createdAt: vendor.createdAt,
       updatedAt: vendor.updatedAt,
     };
