@@ -111,7 +111,7 @@ export default function CandidateThankYou() {
                   </p>
                   <p style={{ fontSize: "12px", color: "#4A6580", lineHeight: 1.65 }}>
                     Your responses, competency scores, and sales simulation recording have been
-                    securely recorded. The HR &amp; Recruitment evaluation team at Niva Bupa will
+                    securely recorded. The HR &amp; Recruitment evaluation team at CCE Programme will
                     review your application and reach out regarding next steps.
                   </p>
                 </div>
@@ -158,7 +158,7 @@ export default function CandidateThankYou() {
         padding: "16px", textAlign: "center",
       }}>
         <p style={{ fontSize: "11px", color: "#8BA4BE", fontWeight: 500 }}>
-          © 2026 Niva Bupa Health Insurance • ARM Banca Channel Recruitment
+          © 2026 CCE Programme Team • Recruitment Assessment
         </p>
       </footer>
     </div>

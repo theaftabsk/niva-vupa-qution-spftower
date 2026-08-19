@@ -983,7 +983,7 @@ export default function AssessmentDashboardPage() {
             </div>
             <h3 style={{ fontSize: "18px", fontWeight: 800, color: "#0F172A", margin: "0 0 6px" }}>Send Email Invitations</h3>
             <p style={{ fontSize: "12px", color: "#64748B", lineHeight: 1.5, marginBottom: "20px" }}>
-              Dispatch official Niva Bupa assessment invitations with personalized unique links to all assigned candidates via Authenticated SMTP.
+              Dispatch official CCE Programme assessment invitations with personalized unique links to all assigned candidates via Authenticated SMTP.
             </p>
 
             {emailProgress && (

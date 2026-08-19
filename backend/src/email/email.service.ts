@@ -19,7 +19,7 @@ export class EmailService {
           username: process.env.SMTP_USER || '',
           password: process.env.SMTP_PASSWORD || '',
           encryption: process.env.SMTP_SECURE === 'true' ? 'SSL' : 'TLS',
-          fromName: process.env.SMTP_FROM_NAME || 'Niva Bupa Recruitment Team',
+          fromName: process.env.SMTP_FROM_NAME || 'CCE Programme Team',
           fromEmail: process.env.SMTP_FROM_EMAIL || 'recruitment@greatcampus.in',
         },
       });
@@ -99,11 +99,11 @@ export class EmailService {
         await transporter.sendMail({
           from: `"${config.fromName}" <${config.fromEmail}>`,
           to: recipient,
-          subject: 'SMTP Connection Test — Niva Bupa Assessment Portal',
-          text: `Niva Bupa Assessment Portal\n\nThis test email confirms that your authenticated SMTP mail server configuration (${config.host}:${config.port}) is working correctly!\n\nSender: ${config.fromName} (${config.fromEmail})\nTimestamp: ${new Date().toLocaleString()}`,
+          subject: 'SMTP Connection Test — CCE Assessment Portal',
+          text: `CCE Assessment Portal\n\nThis test email confirms that your authenticated SMTP mail server configuration (${config.host}:${config.port}) is working correctly!\n\nSender: ${config.fromName} (${config.fromEmail})\nTimestamp: ${new Date().toLocaleString()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
-              <h2 style="color: #003F72; margin-top: 0;">Niva Bupa Assessment System</h2>
+              <h2 style="color: #003F72; margin-top: 0;">CCE Assessment System</h2>
               <p style="color: #334155; font-size: 14px; line-height: 1.6;">
                 This test email confirms that your authenticated SMTP mail server configuration is active and working correctly!
               </p>
@@ -115,9 +115,9 @@ export class EmailService {
               </div>
             </div>
           `,
-          messageId: `<niva-test-${Date.now()}@${domain}>`,
+          messageId: `<cce-test-${Date.now()}@${domain}>`,
           headers: {
-            'X-Mailer': 'Niva Bupa Examination Notification Service',
+            'X-Mailer': 'CCE Programme Examination Notification Service',
             'Auto-Submitted': 'auto-generated',
           },
         });
@@ -149,7 +149,7 @@ export class EmailService {
 
     return `Dear ${candidateName},
 
-You have been officially invited to undertake the ${assessmentName} for Niva Bupa Health Insurance.
+You have been officially invited to undertake the ${assessmentName} for CCE Programme.
 
 ASSESSMENT DETAILS:
 • Assessment: ${assessmentName}
@@ -171,8 +171,8 @@ For any technical assistance during the assessment, please contact your recruitm
 
 Sincerely,
 Recruitment & Talent Acquisition Team
-Niva Bupa Health Insurance Company Limited
-Website: https://www.nivabupa.com`;
+CCE Programme Team
+Website: https://greatcampus.in`;
   }
 
   // ─── HIGH-DELIVERABILITY BEAUTIFUL HTML TEMPLATE ───────────────────────────
@@ -191,7 +191,7 @@ Website: https://www.nivabupa.com`;
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assessment Invitation — Niva Bupa Health Insurance</title>
+  <title>Assessment Invitation — CCE Programme Team</title>
 </head>
 <body style="margin:0; padding:24px 12px; background-color:#F1F5F9; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:18px; overflow:hidden; border:1px solid #E2E8F0; box-shadow:0 8px 30px rgba(0,63,114,0.06);">
@@ -203,10 +203,10 @@ Website: https://www.nivabupa.com`;
           Official Assessment Invitation
         </div>
         <h1 style="margin:0; font-size:22px; font-weight:900; letter-spacing:-0.4px; color:#ffffff;">
-          Niva Bupa Health Insurance
+          CCE Programme Team
         </h1>
         <p style="margin:6px 0 0; font-size:13px; color:#93C5FD; font-weight:500;">
-          Agency Unit Manager &amp; ARM Banca Capability Assessment
+          Capability &amp; Recruitment Assessment
         </p>
       </td>
     </tr>
@@ -218,7 +218,7 @@ Website: https://www.nivabupa.com`;
           Dear ${candidateName},
         </p>
         <p style="font-size:14px; line-height:1.6; color:#334155; margin:0 0 20px;">
-          You have been shortlisted and scheduled to undertake the official <strong>${assessmentName}</strong>. This assessment evaluates core cognitive, customer engagement, insurance acumen, and situational reasoning competencies.
+          You have been shortlisted and scheduled to undertake the official <strong>${assessmentName}</strong>. This assessment evaluates core cognitive, customer engagement, and situational reasoning competencies.
         </p>
 
         <!-- Exam Details Card -->
@@ -295,7 +295,7 @@ Website: https://www.nivabupa.com`;
     <tr>
       <td style="background:#F8FAFC; padding:20px 28px; text-align:center; font-size:11px; color:#64748B; border-top:1px solid #E2E8F0; line-height:1.6;">
         <p style="margin:0 0 4px; font-weight:700; color:#334155;">
-          Niva Bupa Health Insurance Company Limited
+          CCE Programme Team
         </p>
         <p style="margin:0;">
           This is an automated transactional invitation sent for recruitment evaluation. Please do not reply directly to this email.
@@ -366,7 +366,7 @@ Website: https://www.nivabupa.com`;
     try {
       const transporter = await this.createTransporter();
       const senderDomain = config.fromEmail.includes('@') ? config.fromEmail.split('@')[1] : 'greatcampus.in';
-      const cleanMessageId = `<niva-bupa-${candidate.id}-${Date.now()}@${senderDomain}>`;
+      const cleanMessageId = `<cce-${candidate.id}-${Date.now()}@${senderDomain}>`;
 
       await transporter.sendMail({
         from: `"${config.fromName}" <${config.fromEmail}>`,
@@ -377,7 +377,7 @@ Website: https://www.nivabupa.com`;
         html: htmlContent,
         messageId: cleanMessageId,
         headers: {
-          'X-Mailer': 'Niva Bupa Examination Notification Service',
+          'X-Mailer': 'CCE Programme Examination Notification Service',
           'X-Entity-Ref-ID': `${candidate.id}-${Date.now()}`,
           'X-Auto-Response-Suppress': 'All',
           'Auto-Submitted': 'auto-generated',

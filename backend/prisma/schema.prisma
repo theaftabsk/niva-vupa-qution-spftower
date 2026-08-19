@@ -117,7 +117,7 @@ model SmtpConfig {
   username    String   @default("")
   password    String   @default("")
   encryption  String   @default("TLS") // "TLS", "SSL", "NONE"
-  fromName    String   @default("Niva Bupa Recruitment Team")
+  fromName    String   @default("CCE Programme Team")
   fromEmail   String   @default("recruitment@greatcampus.in")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

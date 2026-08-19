@@ -24,7 +24,7 @@ export default function AdminSettingsPage() {
     username: "",
     password: "",
     encryption: "TLS",
-    fromName: "Niva Bupa Recruitment Team",
+    fromName: "CCE Programme Team",
     fromEmail: "recruitment@greatcampus.in",
   });
   const [loadingSmtp, setLoadingSmtp] = useState(true);
@@ -47,7 +47,7 @@ export default function AdminSettingsPage() {
           username: data.config.username || "",
           password: "",
           encryption: data.config.encryption || "TLS",
-          fromName: data.config.fromName || "Niva Bupa Recruitment Team",
+          fromName: data.config.fromName || "CCE Programme Team",
           fromEmail: data.config.fromEmail || "recruitment@greatcampus.in",
         });
       }
@@ -272,7 +272,7 @@ export default function AdminSettingsPage() {
               <label className="set-label">Sender Name (From Name)</label>
               <input
                 type="text"
-                placeholder="Niva Bupa Recruitment Team"
+                placeholder="CCE Programme Team"
                 value={smtp.fromName}
                 onChange={(e) => setSmtp({ ...smtp, fromName: e.target.value })}
                 className="set-input"
