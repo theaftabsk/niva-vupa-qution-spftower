@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Query, Param, Res } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Param, Res, Headers } from '@nestjs/common';
 import { CandidatesService } from './candidates.service';
 import type { Response } from 'express';
 
@@ -17,10 +17,13 @@ export class CandidatesController {
     @Body()
     body: {
       assessmentId: string;
-      candidates: Array<{ name: string; email: string; phone?: string; applicationId?: string }>;
-    }
+      candidates: Array<{ name: string; email: string; phone?: string; applicationId?: string; vendorId?: string }>;
+      vendorId?: string;
+    },
+    @Headers('x-vendor-id') headerVendorId?: string,
   ) {
-    return this.candidatesService.uploadCandidatesExcel(body);
+    const effectiveVendorId = body.vendorId || headerVendorId;
+    return this.candidatesService.uploadCandidatesExcel({ ...body, vendorId: effectiveVendorId });
   }
 
   @Post('verify-token')
@@ -89,8 +92,13 @@ export class CandidatesController {
 
   // --- CANDIDATE ROUTES ---
   @Get()
-  async getCandidates(@Query('assessmentId') assessmentId?: string) {
-    const candidates = await this.candidatesService.getCandidates(assessmentId);
+  async getCandidates(
+    @Query('assessmentId') assessmentId?: string,
+    @Query('vendorId') vendorId?: string,
+    @Headers('x-vendor-id') headerVendorId?: string,
+  ) {
+    const effectiveVendorId = vendorId || headerVendorId;
+    const candidates = await this.candidatesService.getCandidates(assessmentId, effectiveVendorId);
     return { success: true, candidates };
   }
 
@@ -104,9 +112,12 @@ export class CandidatesController {
       assessmentId: string;
       referenceId?: string;
       applicationId?: string;
-    }
+      vendorId?: string;
+    },
+    @Headers('x-vendor-id') headerVendorId?: string,
   ) {
-    const candidate = await this.candidatesService.registerCandidate(body);
+    const effectiveVendorId = body.vendorId || headerVendorId;
+    const candidate = await this.candidatesService.registerCandidate({ ...body, vendorId: effectiveVendorId });
     return { success: true, candidate };
   }
 

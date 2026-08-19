@@ -48,52 +48,68 @@ export class CreditsService {
     candidateName: string;
     assessmentId: string;
     assessmentName: string;
+    vendorId?: string | null;
+    vendorName?: string | null;
     attemptId?: string;
   }) {
-    const { tenantId, candidateId, candidateName, assessmentId, assessmentName, attemptId } = params;
+    const { tenantId, candidateId, candidateName, assessmentId, assessmentName, vendorId, vendorName, attemptId } = params;
 
     return this.prisma.$transaction(async (tx) => {
-      // 1. Fetch tenant with row lock
-      const tenant = await tx.tenant.findUnique({ where: { id: tenantId } });
+      // 1. Fetch Tenant & Validate Credit Balance
+      const tenant = await tx.tenant.findUnique({
+        where: { id: tenantId },
+      });
+
       if (!tenant) {
-        throw new BadRequestException('Tenant not found.');
+        throw new BadRequestException('Tenant organization not found.');
       }
 
       if (tenant.status !== 'ACTIVE') {
-        throw new ForbiddenException('Assessment services for this organization are currently suspended.');
+        throw new BadRequestException('Tenant organization account is currently suspended.');
       }
 
       const remaining = tenant.creditLimit - tenant.usedCredit;
       if (remaining <= 0) {
-        throw new ForbiddenException(
-          'Exam capacity exhausted. Please contact your Super Administrator to top up exam credits.',
+        this.logger.warn(`[Credit Exhausted] Tenant ${tenant.name} has 0 remaining exam credits!`);
+        throw new BadRequestException(
+          'Exam session cannot be launched. Tenant allocated exam credits have been exhausted. Please contact system administrator.',
         );
       }
 
-      // 2. Atomically increment usedCredit
+      // 2. Atomically increment usedCredit for tenant
       const updatedTenant = await tx.tenant.update({
         where: { id: tenant.id },
         data: { usedCredit: { increment: 1 } },
       });
 
+      // 3. Atomically increment vendor creditUsed if candidate belongs to a vendor
+      if (vendorId) {
+        await tx.vendor.update({
+          where: { id: vendorId },
+          data: { creditUsed: { increment: 1 } },
+        }).catch(() => {});
+      }
+
       const newRemaining = updatedTenant.creditLimit - updatedTenant.usedCredit;
 
-      // 3. Record Audit Ledger in CreditHistory
+      // 4. Record Audit Ledger in CreditHistory
       const history = await tx.creditHistory.create({
         data: {
           tenantId: tenant.id,
+          vendorId: vendorId || null,
+          vendorName: vendorName || null,
           type: 'DEDUCTION',
           amount: -1,
           balanceAfter: newRemaining,
           candidateId,
           attemptId: attemptId || null,
-          description: `Exam Start: ${candidateName} — ${assessmentName}`,
+          description: `Exam Start: ${candidateName} — ${assessmentName}${vendorName ? ` (Vendor: ${vendorName})` : ''}`,
           adminName: 'System Engine',
         },
       });
 
       this.logger.log(
-        `[Credit Deducted] Tenant: ${tenant.name} | Candidate: ${candidateName} | Remaining: ${newRemaining}`,
+        `[Credit Deducted] Tenant: ${tenant.name} | Candidate: ${candidateName} | Vendor: ${vendorName || 'Direct'} | Remaining: ${newRemaining}`,
       );
 
       return {

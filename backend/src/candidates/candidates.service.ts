@@ -28,14 +28,18 @@ export class CandidatesService {
   ) { }
 
   // ─── GET CANDIDATES ────────────────────────────────────────────────────────
-  async getCandidates(assessmentId?: string) {
+  async getCandidates(assessmentId?: string, vendorId?: string) {
     const whereClause: any = {};
     if (assessmentId) whereClause.assessmentId = assessmentId;
+    if (vendorId) whereClause.vendorId = vendorId;
 
     const candidates = await this.prisma.candidate.findMany({
       where: whereClause,
       include: {
         assessment: true,
+        vendor: {
+          select: { id: true, name: true, vendorCode: true },
+        },
         attempts: {
           orderBy: { startedAt: 'desc' },
           include: {
@@ -75,7 +79,10 @@ export class CandidatesService {
         });
       }
 
-      const uniqueExamLink = `${frontendBaseUrl}/${cand.assessment.slug}?token=${cand.secureToken || cand.id}`;
+      const examSlug = cand.assessment?.slug || cand.assessmentId;
+      const uniqueExamLink = cand.secureToken
+        ? `${frontendBaseUrl}/${examSlug}?token=${cand.secureToken}`
+        : `${frontendBaseUrl}/${examSlug}`;
 
       return {
         id: cand.id,
@@ -89,6 +96,8 @@ export class CandidatesService {
         emailSentAt: cand.emailSentAt,
         uniqueExamLink,
         status: cand.status,
+        vendorId: cand.vendorId || null,
+        vendor: cand.vendor || null,
         createdAt: cand.createdAt,
         assessment: {
           id: cand.assessment.id,
@@ -128,6 +137,7 @@ export class CandidatesService {
     assessmentId: string;
     referenceId?: string;
     applicationId?: string;
+    vendorId?: string;
   }) {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: data.assessmentId } });
     if (!assessment) {
@@ -154,8 +164,9 @@ export class CandidatesService {
           name: data.name,
           phone: data.phone,
           ...(data.applicationId && { applicationId: data.applicationId }),
+          ...(data.vendorId && { vendorId: data.vendorId }),
         },
-        include: { assessment: true },
+        include: { assessment: true, vendor: true },
       });
     }
 
@@ -167,8 +178,9 @@ export class CandidatesService {
         referenceId: refId,
         applicationId: data.applicationId || null,
         assessmentId: data.assessmentId,
+        vendorId: data.vendorId || null,
       },
-      include: { assessment: true },
+      include: { assessment: true, vendor: true },
     });
 
     // Auto-dispatch invitation email
@@ -324,7 +336,7 @@ export class CandidatesService {
   async startExamSession(candidateIdentifier: string) {
     const candidate = await this.prisma.candidate.findFirst({
       where: { OR: [{ id: candidateIdentifier }, { referenceId: candidateIdentifier }] },
-      include: { assessment: true },
+      include: { assessment: true, vendor: true },
     });
 
     if (!candidate) {
@@ -396,6 +408,8 @@ export class CandidatesService {
       candidateName: candidate.name,
       assessmentId: candidate.assessment.id,
       assessmentName: candidate.assessment.name,
+      vendorId: candidate.vendorId,
+      vendorName: candidate.vendor?.name,
     });
 
     // Create a new attempt with configurable session minute snapshot
@@ -1489,9 +1503,10 @@ export class CandidatesService {
   // ─── CANDIDATE BULK EXCEL UPLOAD & TOKEN GENERATION ────────────────────────
   async uploadCandidatesExcel(data: {
     assessmentId: string;
-    candidates: Array<{ name: string; email: string; phone?: string; applicationId?: string }>;
+    candidates: Array<{ name: string; email: string; phone?: string; applicationId?: string; vendorId?: string }>;
+    vendorId?: string;
   }) {
-    const { assessmentId, candidates } = data;
+    const { assessmentId, candidates, vendorId } = data;
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment) throw new NotFoundException('Assessment not found.');
 
@@ -1506,6 +1521,7 @@ export class CandidatesService {
       const email = (raw.email || '').trim().toLowerCase();
       const phone = (raw.phone || '').toString().trim();
       const applicationId = (raw.applicationId || '').trim();
+      const candidateVendorId = vendorId || raw.vendorId || null;
 
       if (!email || !name) {
         errors.push({ email, name, error: 'Missing candidate name or email.' });
@@ -1532,6 +1548,7 @@ export class CandidatesService {
               name,
               ...(phone && { phone }),
               ...(applicationId && { applicationId }),
+              ...(candidateVendorId && { vendorId: candidateVendorId }),
               ...(!existing.secureToken && { secureToken }),
             },
           });
@@ -1562,6 +1579,7 @@ export class CandidatesService {
             secureToken,
             status: 'REGISTERED',
             emailStatus: 'PENDING',
+            vendorId: candidateVendorId,
           },
         });
 

@@ -83,6 +83,8 @@ export default function AdminAssessmentsPage() {
   const [sessions, setSessions] = useState<AssessmentSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
+  const [vendorId, setVendorId] = useState<string | null>(null);
 
   // Toast state
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -120,7 +122,28 @@ export default function AdminAssessmentsPage() {
   const loadSessions = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch(`${getApiBaseUrl()}/api/v1/assessments`);
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeVendorId: string | null = null;
+
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeVendorId = u.vendorId || null;
+          setUserRole(activeRole);
+          setVendorId(activeVendorId);
+        } catch {}
+      }
+
+      const headers: any = { Authorization: `Bearer ${token}` };
+      if (activeRole === "VENDOR" && activeVendorId) {
+        headers["x-vendor-id"] = activeVendorId;
+        headers["x-user-role"] = "VENDOR";
+      }
+
+      const res  = await fetch(`${getApiBaseUrl()}/api/v1/assessments`, { headers });
       const data = await res.json();
       if (data.success) setSessions(data.assessments || []);
     } catch { /* silent */ } finally { setLoading(false); }
@@ -238,14 +261,20 @@ export default function AdminAssessmentsPage() {
     <div className="assess-page">
       {/* Header Bar */}
       <div className="assess-header">
-        <p className="assess-subtitle">Create unique candidate exam links with scheduled access windows</p>
+        <p className="assess-subtitle">
+          {userRole === "VENDOR"
+            ? "Your assigned assessments. Click any assessment to upload candidates and manage exam sessions."
+            : "Create unique candidate exam links with scheduled access windows"}
+        </p>
         <div className="assess-header-actions">
           <button className="assess-refresh-btn" onClick={loadSessions} title="Refresh Sessions">
             <RefreshCw size={15} /> Refresh List
           </button>
-          <button className="assess-create-btn" onClick={openCreate}>
-            <Plus size={16} /> New Assessment Session
-          </button>
+          {userRole !== "VENDOR" && (
+            <button className="assess-create-btn" onClick={openCreate}>
+              <Plus size={16} /> New Assessment Session
+            </button>
+          )}
         </div>
       </div>
 
@@ -267,10 +296,16 @@ export default function AdminAssessmentsPage() {
       ) : sessions.length === 0 ? (
         <div className="assess-empty">
           <BookOpen size={42} className="assess-empty-icon" />
-          <p>No assessment sessions created yet.</p>
-          <button className="assess-create-btn" onClick={openCreate} style={{ margin: "16px auto 0" }}>
-            <Plus size={15} /> Create First Session
-          </button>
+          <p>
+            {userRole === "VENDOR"
+              ? "No assessments assigned to your vendor account yet. Please contact HR Administrator."
+              : "No assessment sessions created yet."}
+          </p>
+          {userRole !== "VENDOR" && (
+            <button className="assess-create-btn" onClick={openCreate} style={{ margin: "16px auto 0" }}>
+              <Plus size={15} /> Create First Session
+            </button>
+          )}
         </div>
       ) : (
         <div className="assess-excel-wrapper">
@@ -349,21 +384,25 @@ export default function AdminAssessmentsPage() {
                         <Link href={`/admin/assessments/${session.id}`} className="excel-act-btn excel-act-edit" title="Open Assessment Dashboard" style={{ textDecoration: "none", background: "#EFF6FF", color: "#00AEEF", borderColor: "#BFDBFE" }}>
                           <ExternalLink size={13} />
                         </Link>
-                        <button className="excel-act-btn excel-act-edit" onClick={() => openEdit(session)} title="Edit Session">
-                          <Edit2 size={13} />
-                        </button>
-                        {computedStatus !== "EXPIRED" && (
-                          <button
-                            className={`excel-act-btn ${session.status === "ACTIVE" ? "excel-act-deactivate" : "excel-act-activate"}`}
-                            onClick={() => handleToggleStatus(session)}
-                            title={session.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                          >
-                            {session.status === "ACTIVE" ? <EyeOff size={13} /> : <Eye size={13} />}
-                          </button>
+                        {userRole !== "VENDOR" && (
+                          <>
+                            <button className="excel-act-btn excel-act-edit" onClick={() => openEdit(session)} title="Edit Session">
+                              <Edit2 size={13} />
+                            </button>
+                            {computedStatus !== "EXPIRED" && (
+                              <button
+                                className={`excel-act-btn ${session.status === "ACTIVE" ? "excel-act-deactivate" : "excel-act-activate"}`}
+                                onClick={() => handleToggleStatus(session)}
+                                title={session.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                              >
+                                {session.status === "ACTIVE" ? <EyeOff size={13} /> : <Eye size={13} />}
+                              </button>
+                            )}
+                            <button className="excel-act-btn excel-act-delete" onClick={() => setDeleteTarget(session)} title="Delete Session">
+                              <Trash2 size={13} />
+                            </button>
+                          </>
                         )}
-                        <button className="excel-act-btn excel-act-delete" onClick={() => setDeleteTarget(session)} title="Delete Session">
-                          <Trash2 size={13} />
-                        </button>
                       </div>
                     </td>
 

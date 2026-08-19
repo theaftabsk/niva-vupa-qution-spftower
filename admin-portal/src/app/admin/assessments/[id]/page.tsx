@@ -74,7 +74,26 @@ export default function AssessmentDashboardPage() {
     setError("");
     try {
       const baseUrl = getApiBaseUrl();
-      const res = await fetch(`${baseUrl}/api/v1/candidates/assessment-dashboard/${assessmentId}`);
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeVendorId: string | null = null;
+
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeVendorId = u.vendorId || null;
+        } catch {}
+      }
+
+      const headers: any = { Authorization: `Bearer ${token}` };
+      if (activeRole === "VENDOR" && activeVendorId) {
+        headers["x-vendor-id"] = activeVendorId;
+        headers["x-user-role"] = "VENDOR";
+      }
+
+      const res = await fetch(`${baseUrl}/api/v1/candidates/assessment-dashboard/${assessmentId}`, { headers });
       const resData = await res.json();
       if (resData.success) {
         setData(resData);
@@ -111,12 +130,22 @@ export default function AssessmentDashboardPage() {
     setAddingCandidate(true);
     try {
       const baseUrl = getApiBaseUrl();
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeVendorId: string | undefined = undefined;
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          if (u.role === "VENDOR" && u.vendorId) activeVendorId = u.vendorId;
+        } catch {}
+      }
+
       const res = await fetch(`${baseUrl}/api/v1/candidates/upload-excel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessmentId,
           candidates: [singleCandidate],
+          ...(activeVendorId && { vendorId: activeVendorId }),
         }),
       });
       const resData = await res.json();
@@ -247,12 +276,22 @@ export default function AssessmentDashboardPage() {
 
     try {
       const baseUrl = getApiBaseUrl();
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeVendorId: string | undefined = undefined;
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          if (u.role === "VENDOR" && u.vendorId) activeVendorId = u.vendorId;
+        } catch {}
+      }
+
       const res = await fetch(`${baseUrl}/api/v1/candidates/upload-excel`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessmentId,
           candidates: validRows,
+          ...(activeVendorId && { vendorId: activeVendorId }),
         }),
       });
       const resData = await res.json();

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   Search, RefreshCw, Lock, Unlock, Trash2, CheckCircle2,
   AlertTriangle, ShieldAlert, Download, Table, FileText, Award,
-  Filter, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet, RotateCcw
+  Filter, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet, RotateCcw, Building2
 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/config";
 import CandidateReportModal from "@/components/CandidateReportModal";
@@ -14,7 +14,11 @@ import ToastContainer, { ToastMessage } from "@/components/Toast";
 export default function CandidatesManagementPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [assessments, setAssessments] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string>("ALL");
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("ALL");
+  const [userRole, setUserRole] = useState<string>("ADMIN");
+  const [loggedVendorId, setLoggedVendorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -49,19 +53,61 @@ export default function CandidatesManagementPage() {
     setLoading(true);
     try {
       const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeVendorId: string | null = null;
+
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeVendorId = u.vendorId || null;
+          setUserRole(activeRole);
+          setLoggedVendorId(activeVendorId);
+        } catch {}
+      }
+
+      // Query params
+      const params = new URLSearchParams();
+      if (selectedAssessmentId !== "ALL") params.append("assessmentId", selectedAssessmentId);
+      
+      const effectiveVendor = activeRole === "VENDOR" ? activeVendorId : (selectedVendorId !== "ALL" ? selectedVendorId : null);
+      if (effectiveVendor) params.append("vendorId", effectiveVendor);
 
       // Fetch candidates
-      const candRes = await fetch(`${baseUrl}/api/v1/candidates${selectedAssessmentId !== "ALL" ? `?assessmentId=${selectedAssessmentId}` : ""}`);
+      const candRes = await fetch(`${baseUrl}/api/v1/candidates?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
+        },
+      });
       const candData = await candRes.json();
       if (candData.success) {
         setCandidates(candData.candidates || []);
       }
 
       // Fetch assessment list for dropdown
-      const assessRes = await fetch(`${baseUrl}/api/v1/candidates/assessments/list`);
+      const assessRes = await fetch(`${baseUrl}/api/v1/assessments`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
+        },
+      });
       const assessData = await assessRes.json();
       if (assessData.success) {
         setAssessments(assessData.assessments || []);
+      }
+
+      // Fetch vendors list if Admin
+      if (activeRole !== "VENDOR") {
+        const vRes = await fetch(`${baseUrl}/api/v1/vendors`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const vData = await vRes.json();
+        if (Array.isArray(vData)) {
+          setVendors(vData);
+        }
       }
     } catch {
       /* silent */
@@ -73,7 +119,7 @@ export default function CandidatesManagementPage() {
   useEffect(() => {
     loadData();
     setCurrentPage(1);
-  }, [selectedAssessmentId]);
+  }, [selectedAssessmentId, selectedVendorId]);
 
   const handleUnlock = async (candidateId: string, name: string) => {
     setActionLoadingId(candidateId);
@@ -232,7 +278,7 @@ export default function CandidatesManagementPage() {
           </div>
 
           {/* Assessment Dropdown Filter */}
-          <div className="flex items-center gap-2 min-w-[260px]">
+          <div className="flex items-center gap-2 min-w-[240px]">
             <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
               <BookOpen className="w-3.5 h-3.5 text-blue-600" /> Assessment:
             </span>
@@ -241,7 +287,7 @@ export default function CandidatesManagementPage() {
               onChange={(e) => setSelectedAssessmentId(e.target.value)}
               className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="ALL">All Assessments (All Batches)</option>
+              <option value="ALL">All Assessments</option>
               {assessments.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} ({a.slug || a.id.slice(0, 8)})
@@ -249,6 +295,27 @@ export default function CandidatesManagementPage() {
               ))}
             </select>
           </div>
+
+          {/* Vendor Dropdown Filter (Admin only) */}
+          {userRole !== "VENDOR" && (
+            <div className="flex items-center gap-2 min-w-[220px]">
+              <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" /> Vendor:
+              </span>
+              <select
+                value={selectedVendorId}
+                onChange={(e) => setSelectedVendorId(e.target.value)}
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="ALL">All Vendors (All)</option>
+                {vendors.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name} ({v.vendorCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Status Filter Tabs */}
@@ -311,13 +378,14 @@ export default function CandidatesManagementPage() {
           </div>
         ) : (
           <div className="overflow-x-auto w-full">
-            <table className="w-full min-w-[1150px] text-left border-collapse border-spacing-0 font-sans text-xs">
+            <table className="w-full min-w-[1250px] text-left border-collapse border-spacing-0 font-sans text-xs">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black uppercase text-slate-500 tracking-wider">
                   <th className="py-3.5 px-4 text-center w-12 whitespace-nowrap">#</th>
                   <th className="py-3.5 px-4 whitespace-nowrap">Candidate Details</th>
                   <th className="py-3.5 px-4 whitespace-nowrap">CRM Application ID</th>
                   <th className="py-3.5 px-4 whitespace-nowrap">Exam Session</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Vendor / Agency</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Security Warnings</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Score Marks</th>
@@ -362,6 +430,18 @@ export default function CandidatesManagementPage() {
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-slate-800">{c.assessment?.name || "Niva Bupa Assessment"}</div>
                         <div className="text-[10px] text-blue-600 font-bold">{c.assessment?.slug}</div>
+                      </td>
+
+                      {/* Vendor / Agency */}
+                      <td className="py-3.5 px-4">
+                        {c.vendor ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-200">
+                            <Building2 size={11} />
+                            <span>{c.vendor.name}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">Direct / Admin</span>
+                        )}
                       </td>
 
                       {/* Warnings */}

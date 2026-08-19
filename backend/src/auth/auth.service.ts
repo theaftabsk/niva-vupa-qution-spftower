@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
@@ -10,13 +11,20 @@ export class AuthService {
   ) {}
 
   async validateAdmin(username: string, pass: string) {
-    let admin = await this.prisma.admin.findUnique({ where: { username } });
+    const cleanUser = username.trim().toLowerCase();
 
-    if (!admin && username === 'admin' && pass === 'admin123') {
-      let tenant = await this.prisma.tenant.findUnique({ where: { slug: 'greatcampus' } });
+    // 1. Check Admin Table
+    let admin = await this.prisma.admin.findFirst({
+      where: {
+        username: { equals: username.trim(), mode: 'insensitive' },
+      },
+    });
+
+    if (!admin && username.trim() === 'admin' && pass === 'admin123') {
+      let tenant = await this.prisma.tenant.findFirst();
       if (!tenant) {
         tenant = await this.prisma.tenant.create({
-          data: { name: 'GREATCAMPUS', slug: 'greatcampus' },
+          data: { name: 'Niva Bupa Health Insurance', slug: 'niva-bupa' },
         });
       }
 
@@ -25,20 +33,82 @@ export class AuthService {
           username: 'admin',
           password: 'admin123',
           name: 'HR System Administrator',
+          role: 'ADMIN',
           tenantId: tenant.id,
         },
       });
     }
 
-    if (admin && admin.password === pass) {
-      const payload = { username: admin.username, sub: admin.id, role: admin.role };
-      return {
-        access_token: this.jwtService.sign(payload),
-        user: { id: admin.id, username: admin.username, name: admin.name, role: admin.role },
-      };
+    if (admin) {
+      let isMatch = admin.password === pass;
+      if (!isMatch && admin.password.startsWith('$2')) {
+        isMatch = await bcrypt.compare(pass, admin.password);
+      }
+
+      if (isMatch) {
+        const payload = {
+          username: admin.username,
+          sub: admin.id,
+          role: admin.role,
+          name: admin.name,
+        };
+        return {
+          access_token: this.jwtService.sign(payload),
+          user: {
+            id: admin.id,
+            username: admin.username,
+            name: admin.name,
+            role: admin.role,
+          },
+        };
+      }
     }
 
-    throw new UnauthorizedException('Invalid admin credentials');
+    // 2. Check Vendor Table
+    const vendor = await this.prisma.vendor.findFirst({
+      where: {
+        email: { equals: cleanUser, mode: 'insensitive' },
+      },
+    });
+
+    if (vendor) {
+      if (vendor.status !== 'ACTIVE') {
+        throw new UnauthorizedException('Your Vendor account is inactive or suspended. Please contact HR Administrator.');
+      }
+
+      let isMatch = false;
+      if (vendor.passwordHash.startsWith('$2')) {
+        isMatch = await bcrypt.compare(pass, vendor.passwordHash);
+      } else {
+        isMatch = vendor.passwordHash === pass;
+      }
+
+      if (isMatch) {
+        const payload = {
+          sub: vendor.id,
+          username: vendor.email,
+          email: vendor.email,
+          name: vendor.name,
+          role: 'VENDOR',
+          vendorId: vendor.id,
+          vendorCode: vendor.vendorCode,
+        };
+        return {
+          access_token: this.jwtService.sign(payload),
+          user: {
+            id: vendor.id,
+            username: vendor.email,
+            email: vendor.email,
+            name: vendor.name,
+            role: 'VENDOR',
+            vendorId: vendor.id,
+            vendorCode: vendor.vendorCode,
+          },
+        };
+      }
+    }
+
+    throw new UnauthorizedException('Invalid email, username, or password.');
   }
 
   async updateAdminCredentials(data: { username: string; newPassword?: string; currentPassword?: string }) {

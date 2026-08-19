@@ -33,31 +33,61 @@ model Admin {
   adminActions   AdminActionLog[]
 }
 
+model Vendor {
+  id                  String             @id @default(uuid())
+  tenantId            String             @default("default-tenant")
+  vendorCode          String             @unique // e.g. VND-1001
+  name                String             // Vendor Company Name
+  email               String             @unique // Unique Vendor Login Email
+  passwordHash        String             // Bcrypt Hashed Password
+  phone               String?
+  contactPerson       String?
+  status              String             @default("ACTIVE") // ACTIVE, SUSPENDED, INACTIVE
+  assignedAssessments VendorAssessment[]
+  candidates          Candidate[]
+  creditUsed          Int                @default(0) // Total exams launched under this vendor
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model VendorAssessment {
+  id             String      @id @default(uuid())
+  vendorId       String
+  vendor         Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  assessmentId   String
+  assessment     Assessment  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assignedBy     String?     // Admin ID or Name
+  status         String      @default("ACTIVE") // ACTIVE, REVOKED
+  assignedAt     DateTime    @default(now())
+
+  @@unique([vendorId, assessmentId])
+}
+
 // Assessment = a single exam session. Each session has a unique link and an active time window.
-// The exam itself is always: 60 Questions + 45 Minutes (fixed constants, not stored here).
+// The exam itself is always: 60 Questions + 45 Minutes.
 model Assessment {
-  id                 String      @id @default(uuid())
+  id                 String             @id @default(uuid())
   tenantId           String
-  tenant             Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   name               String
-  slug               String      @unique
+  slug               String             @unique
   description        String?
-  durationMins       Int         @default(45)
-  passingPercentage  Float       @default(50.0)
-  maxProctorWarnings Int         @default(3)
-  enableTabSwitch    Boolean     @default(true)
-  enableFullscreen   Boolean     @default(true)
-  enableCopyPaste    Boolean     @default(true)
-  status             String      @default("ACTIVE") // ACTIVE, DRAFT, INACTIVE — EXPIRED/UPCOMING computed at runtime from activeFrom/activeUntil
-  activeFrom         DateTime?   // When the session link becomes accessible to candidates
-  activeUntil        DateTime?   // When the session link expires
+  durationMins       Int                @default(45)
+  passingPercentage  Float              @default(50.0)
+  maxProctorWarnings Int                @default(3)
+  enableTabSwitch    Boolean            @default(true)
+  enableFullscreen   Boolean            @default(true)
+  enableCopyPaste    Boolean            @default(true)
+  status             String             @default("ACTIVE") // ACTIVE, DRAFT, INACTIVE, ARCHIVED
+  activeFrom         DateTime?          // When the session link becomes accessible to candidates
+  activeUntil        DateTime?          // When the session link expires
   candidates         Candidate[]
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  vendorAssignments  VendorAssessment[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 }
 
 // Shared Question Bank — 60 fixed questions used across ALL assessments.
-// sectionName groups questions into 6 sections (Q1-10, Q11-20, ... Q51-60) for section-wise report cards.
 model Question {
   id               String            @id @default(uuid())
   question         String
@@ -78,11 +108,13 @@ model Question {
 model Candidate {
   id             String        @id @default(uuid())
   assessmentId   String
-  assessment     Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment     Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  vendorId       String?       // NULL = SuperAdmin/Direct, String = Assigned Vendor
+  vendor         Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   name           String
   email          String
   phone          String
-  applicationId  String?       // Headstart CRM Application ID
+  applicationId  String?       // Headstart CRM / Enrolment ID
   crmCandidateId String?       // Headstart CRM Candidate ID
   referenceId    String        @unique
   secureToken    String?       @unique @default(uuid()) // Unique secure exam link token
@@ -92,6 +124,7 @@ model Candidate {
   attempts       ExamAttempt[]
   emailLogs      EmailLog[]
   createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
 }
 
 model IntegrationConfig {
@@ -227,6 +260,8 @@ model CreditHistory {
   id           String   @id @default(uuid())
   tenantId     String
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  vendorId     String?
+  vendorName   String?
   type         String   // "ALLOCATION", "DEDUCTION", "ADJUSTMENT", "REFUND"
   amount       Int      // e.g. +500, -1, +100, -50
   balanceAfter Int      // Remaining balance at that timestamp

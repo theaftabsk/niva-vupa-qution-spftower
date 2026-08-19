@@ -12,6 +12,7 @@ import { HeadstartIntegrationModule } from './integration/headstart/headstart-in
 import { EmailModule } from './email/email.module';
 import { CreditsModule } from './credits/credits.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
+import { VendorsModule } from './vendors/vendors.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -24,6 +25,7 @@ import { AppService } from './app.service';
     }]),
     PrismaModule,
     AuthModule,
+    VendorsModule,
     QuestionsModule,
     CandidatesModule,
     ProctoringModule,

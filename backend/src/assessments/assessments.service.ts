@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const EXAM_DURATION_MINS = 45;
@@ -12,16 +12,37 @@ export class AssessmentsService {
     let tenant = await this.prisma.tenant.findFirst();
     if (!tenant) {
       tenant = await this.prisma.tenant.create({
-        data: { name: 'GREATCAMPUS', slug: 'greatcampus' },
+        data: { name: 'Niva Bupa Health Insurance', slug: 'niva-bupa' },
       });
     }
     return tenant;
   }
 
-  async getAssessments() {
+  async getAssessments(vendorId?: string) {
+    const whereClause: any = {
+      status: { not: 'ARCHIVED' },
+    };
+
+    if (vendorId) {
+      whereClause.vendorAssignments = {
+        some: {
+          vendorId,
+          status: 'ACTIVE',
+        },
+      };
+    }
+
     const assessments = await this.prisma.assessment.findMany({
+      where: whereClause,
       include: {
         _count: { select: { candidates: true } },
+        vendorAssignments: {
+          include: {
+            vendor: {
+              select: { id: true, name: true, vendorCode: true },
+            },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -31,7 +52,7 @@ export class AssessmentsService {
 
     return assessments.map((ass) => {
       let computedStatus = ass.status;
-      if (ass.status !== 'INACTIVE' && ass.status !== 'DRAFT') {
+      if (ass.status !== 'INACTIVE' && ass.status !== 'DRAFT' && ass.status !== 'ARCHIVED') {
         if (ass.activeFrom && now < new Date(ass.activeFrom)) computedStatus = 'UPCOMING';
         else if (ass.activeUntil && now > new Date(ass.activeUntil)) computedStatus = 'EXPIRED';
       }
@@ -50,6 +71,7 @@ export class AssessmentsService {
         totalCandidates: ass._count.candidates,
         durationMins: ass.durationMins || EXAM_DURATION_MINS,
         totalQuestions: TOTAL_QUESTIONS,
+        assignedVendors: ass.vendorAssignments.map((va) => va.vendor),
         uniqueCandidateLink: `${frontendBaseUrl}/${ass.slug || ass.id}`,
       };
     });
@@ -60,6 +82,13 @@ export class AssessmentsService {
       where: { OR: [{ id }, { slug: id }] },
       include: {
         _count: { select: { candidates: true } },
+        vendorAssignments: {
+          include: {
+            vendor: {
+              select: { id: true, name: true, vendorCode: true },
+            },
+          },
+        },
       },
     });
 
@@ -67,28 +96,37 @@ export class AssessmentsService {
       throw new NotFoundException(`Assessment not found`);
     }
 
-    const frontendBaseUrl = process.env.FRONTEND_CANDIDATE_URL || 'https://greatcampus-1.onrender.com';
+    const frontendBaseUrl = process.env.FRONTEND_CANDIDATE_URL || 'http://localhost:3002';
 
     return {
       ...assessment,
       durationMins: assessment.durationMins || EXAM_DURATION_MINS,
       totalQuestions: TOTAL_QUESTIONS,
-      uniqueCandidateLink: `${frontendBaseUrl}/exam?assessment=${assessment.slug || assessment.id}`,
+      assignedVendors: assessment.vendorAssignments.map((va) => va.vendor),
+      uniqueCandidateLink: `${frontendBaseUrl}/${assessment.slug || assessment.id}`,
     };
   }
 
-  async saveAssessment(data: {
-    id?: string;
-    name: string;
-    slug?: string;
-    description?: string;
-    durationMins?: number;
-    activeFrom?: string;
-    activeUntil?: string;
-    passingPercentage?: number;
-    maxProctorWarnings?: number;
-    status?: string;
-  }) {
+  async saveAssessment(
+    data: {
+      id?: string;
+      name: string;
+      slug?: string;
+      description?: string;
+      durationMins?: number;
+      activeFrom?: string;
+      activeUntil?: string;
+      passingPercentage?: number;
+      maxProctorWarnings?: number;
+      status?: string;
+      assignedVendorIds?: string[];
+    },
+    userRole?: string,
+  ) {
+    if (userRole === 'VENDOR') {
+      throw new ForbiddenException("You don't have permission to create or modify assessments. Only Admin can manage assessments.");
+    }
+
     const tenant = await this.getOrCreateTenant();
     const slug = data.slug || (data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4));
 
@@ -96,13 +134,11 @@ export class AssessmentsService {
     let finalActiveFrom = data.activeFrom ? new Date(data.activeFrom) : null;
     let finalActiveUntil = data.activeUntil ? new Date(data.activeUntil) : null;
 
-    // On creation: default activeFrom to NOW, activeUntil to NOW + 24 Hours if not specified
     if (!data.id) {
       if (!finalActiveFrom) finalActiveFrom = now;
       if (!finalActiveUntil) finalActiveUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     }
 
-    // Validation Guard: If activating an expired session without a future activeUntil, throw error
     if (data.id && data.status === 'ACTIVE') {
       const existing = await this.prisma.assessment.findUnique({ where: { id: data.id } });
       if (existing) {
@@ -125,13 +161,13 @@ export class AssessmentsService {
       ...(finalActiveUntil !== undefined && { activeUntil: finalActiveUntil }),
     };
 
+    let assessment: any;
     if (data.id) {
-      const updated = await this.prisma.assessment.update({
+      assessment = await this.prisma.assessment.update({
         where: { id: data.id },
         data: payload,
       });
 
-      // Synchronize in-progress and locked attempts so candidate sessions immediately reflect new duration, passing percentage, and max warnings
       await this.prisma.examAttempt.updateMany({
         where: {
           candidate: { assessmentId: data.id },
@@ -143,19 +179,62 @@ export class AssessmentsService {
           maxProctorWarningsSnapshot: payload.maxProctorWarnings,
         },
       });
-
-      return updated;
+    } else {
+      assessment = await this.prisma.assessment.create({
+        data: {
+          tenantId: tenant.id,
+          ...payload,
+        },
+      });
     }
 
-    return this.prisma.assessment.create({
-      data: {
-        tenantId: tenant.id,
-        ...payload,
-      },
-    });
+    // If assignedVendorIds provided, sync VendorAssessment
+    if (data.assignedVendorIds !== undefined) {
+      await this.prisma.vendorAssessment.deleteMany({
+        where: {
+          assessmentId: assessment.id,
+          vendorId: { notIn: data.assignedVendorIds },
+        },
+      });
+
+      for (const vendorId of data.assignedVendorIds) {
+        const existing = await this.prisma.vendorAssessment.findUnique({
+          where: {
+            vendorId_assessmentId: { vendorId, assessmentId: assessment.id },
+          },
+        });
+        if (!existing) {
+          await this.prisma.vendorAssessment.create({
+            data: {
+              vendorId,
+              assessmentId: assessment.id,
+              status: 'ACTIVE',
+              assignedBy: 'Admin',
+            },
+          });
+        }
+      }
+    }
+
+    return this.getAssessmentById(assessment.id);
   }
 
-  async deleteAssessment(id: string) {
+  async deleteAssessment(id: string, userRole?: string) {
+    if (userRole === 'VENDOR') {
+      throw new ForbiddenException("You don't have permission to delete assessments. Only Admin can manage assessments.");
+    }
+
+    const candidateCount = await this.prisma.candidate.count({ where: { assessmentId: id } });
+    if (candidateCount > 0) {
+      // Safe Soft-delete to preserve candidate attempts & scorecards
+      return this.prisma.assessment.update({
+        where: { id },
+        data: { status: 'ARCHIVED' },
+      });
+    }
+
+    // Hard delete if no candidates exist
+    await this.prisma.vendorAssessment.deleteMany({ where: { assessmentId: id } });
     return this.prisma.assessment.delete({ where: { id } });
   }
 }
