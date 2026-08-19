@@ -2106,7 +2106,7 @@ export class CandidatesService {
         strengths = strengthList.join(', ') || 'General Aptitude';
         development = devList.join(', ') || 'No critical weaknesses';
 
-        recommendation = att.isPassed ? 'Strongly Recommended' : 'Further Interview Evaluation Required';
+        recommendation = (att && att.percentage >= 60) ? 'Strongly Recommended' : 'Standard Evaluation';
       }
 
       sheet5.addRow({
