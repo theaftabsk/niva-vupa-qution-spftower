@@ -225,14 +225,14 @@ export default function AssessmentDashboardPage() {
   const handleDownloadSampleTemplate = () => {
     const wsData = [
       ["Name", "Email", "Phone", "ApplicationID"],
-      ["Aftab Sk", "aftabsk0005@gmail.com", "9732351545", "APP-1001"],
-      ["Rahul Roy", "rahul.roy@example.com", "9876543210", "APP-1002"],
-      ["Priya Sharma", "priya.sharma@example.com", "9876543211", "APP-1003"],
+      ["Aftab Sk", "aftabsk0005@gmail.com", "9732351545", "BMU-CCE/2026/Udaan/111111"],
+      ["Rahul Roy", "rahul.roy@example.com", "9876543210", "BMU-CCE/2026/Udaan/111112"],
+      ["Priya Sharma", "priya.sharma@example.com", "9876543211", "BMU-CCE/2026/Udaan/111113"],
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Candidates");
-    XLSX.writeFile(wb, "Niva_Bupa_Candidate_Upload_Template.xlsx");
+    XLSX.writeFile(wb, "Candidate_Upload_Template.xlsx");
   };
 
   const handleConfirmExcelUpload = async () => {
@@ -837,10 +837,10 @@ export default function AssessmentDashboardPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Application ID</label>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Application / Enrolment ID</label>
                   <input
                     type="text"
-                    placeholder="APP-10293"
+                    placeholder="BMU-CCE/2026/Udaan/111111"
                     value={singleCandidate.applicationId}
                     onChange={(e) => setSingleCandidate({ ...singleCandidate, applicationId: e.target.value })}
                     style={{ width: "100%", padding: "8px 12px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "13px" }}
@@ -901,7 +901,7 @@ export default function AssessmentDashboardPage() {
 
             <textarea
               rows={5}
-              placeholder={"Name,Email,Phone,ApplicationID\nAftab Sk,aftab@example.com,9876543210,APP-001\nRahul Roy,rahul@example.com,9876543211,APP-002"}
+              placeholder={"Name,Email,Phone,ApplicationID\nAftab Sk,aftab@example.com,9876543210,BMU-CCE/2026/Udaan/111111\nRahul Roy,rahul@example.com,9876543211,BMU-CCE/2026/Udaan/111112"}
               value={excelText}
               onChange={(e) => handleParseText(e.target.value)}
               style={{ width: "100%", padding: "10px 12px", borderRadius: "8px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "monospace", color: "#0F172A", marginBottom: "16px" }}
