@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
@@ -10,46 +10,42 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateAdmin(username: string, pass: string) {
-    const cleanUser = username.trim().toLowerCase();
+  async validateAdmin(usernameOrEmail: string, pass: string) {
+    if (!usernameOrEmail || !pass) {
+      throw new UnauthorizedException('Username/Email and Password are required.');
+    }
+
+    const cleanInput = usernameOrEmail.trim();
+    const cleanLower = cleanInput.toLowerCase();
 
     // 1. Check Admin Table
-    let admin = await this.prisma.admin.findFirst({
+    const admin = await this.prisma.admin.findFirst({
       where: {
-        username: { equals: username.trim(), mode: 'insensitive' },
+        username: { equals: cleanInput, mode: 'insensitive' },
       },
     });
 
-    if (!admin && username.trim() === 'admin' && pass === 'admin123') {
-      let tenant = await this.prisma.tenant.findFirst();
-      if (!tenant) {
-        tenant = await this.prisma.tenant.create({
-          data: { name: 'Niva Bupa Health Insurance', slug: 'niva-bupa' },
-        });
-      }
-
-      admin = await this.prisma.admin.create({
-        data: {
-          username: 'admin',
-          password: 'admin123',
-          name: 'HR System Administrator',
-          role: 'ADMIN',
-          tenantId: tenant.id,
-        },
-      });
-    }
-
     if (admin) {
-      let isMatch = admin.password === pass;
-      if (!isMatch && admin.password.startsWith('$2')) {
+      let isMatch = false;
+      if (admin.password.startsWith('$2')) {
         isMatch = await bcrypt.compare(pass, admin.password);
+      } else {
+        // Legacy plaintext check -> auto-upgrade to bcrypt hash for future security
+        isMatch = admin.password === pass;
+        if (isMatch) {
+          const newHashed = await bcrypt.hash(pass, 10);
+          await this.prisma.admin.update({
+            where: { id: admin.id },
+            data: { password: newHashed },
+          });
+        }
       }
 
       if (isMatch) {
         const payload = {
           username: admin.username,
           sub: admin.id,
-          role: admin.role,
+          role: admin.role || 'ADMIN',
           name: admin.name,
         };
         return {
@@ -58,7 +54,7 @@ export class AuthService {
             id: admin.id,
             username: admin.username,
             name: admin.name,
-            role: admin.role,
+            role: admin.role || 'ADMIN',
           },
         };
       }
@@ -67,7 +63,10 @@ export class AuthService {
     // 2. Check Vendor Table
     const vendor = await this.prisma.vendor.findFirst({
       where: {
-        email: { equals: cleanUser, mode: 'insensitive' },
+        OR: [
+          { email: { equals: cleanLower, mode: 'insensitive' } },
+          { vendorCode: { equals: cleanInput, mode: 'insensitive' } },
+        ],
       },
     });
 
@@ -77,10 +76,17 @@ export class AuthService {
       }
 
       let isMatch = false;
-      if (vendor.passwordHash.startsWith('$2')) {
+      if (vendor.passwordHash && vendor.passwordHash.startsWith('$2')) {
         isMatch = await bcrypt.compare(pass, vendor.passwordHash);
-      } else {
+      } else if (vendor.passwordHash) {
         isMatch = vendor.passwordHash === pass;
+        if (isMatch) {
+          const newHashed = await bcrypt.hash(pass, 10);
+          await this.prisma.vendor.update({
+            where: { id: vendor.id },
+            data: { passwordHash: newHashed },
+          });
+        }
       }
 
       if (isMatch) {
@@ -108,34 +114,29 @@ export class AuthService {
       }
     }
 
-    throw new UnauthorizedException('Invalid email, username, or password.');
+    throw new UnauthorizedException('Invalid username, email, or password.');
   }
 
   async updateAdminCredentials(data: { username: string; newPassword?: string; currentPassword?: string }) {
-    let admin = await this.prisma.admin.findFirst({
+    const admin = await this.prisma.admin.findFirst({
       where: { role: { not: 'SUPER_ADMIN' } },
     });
 
     if (!admin) {
-      let tenant = await this.prisma.tenant.findFirst();
-      if (!tenant) {
-        tenant = await this.prisma.tenant.create({
-          data: { name: 'Niva Bupa Health Insurance', slug: 'niva-bupa' },
-        });
-      }
-      admin = await this.prisma.admin.create({
-        data: {
-          tenantId: tenant.id,
-          username: 'admin',
-          password: 'admin123',
-          name: 'HR Administrator',
-          role: 'ADMIN',
-        },
-      });
+      throw new BadRequestException('No admin account found to update.');
     }
 
-    if (data.currentPassword && admin.password !== data.currentPassword && data.currentPassword !== 'admin123') {
-      throw new UnauthorizedException('Current password is incorrect.');
+    if (data.currentPassword) {
+      let isCurrentValid = false;
+      if (admin.password.startsWith('$2')) {
+        isCurrentValid = await bcrypt.compare(data.currentPassword, admin.password);
+      } else {
+        isCurrentValid = admin.password === data.currentPassword;
+      }
+
+      if (!isCurrentValid) {
+        throw new UnauthorizedException('Current password is incorrect.');
+      }
     }
 
     const updateData: any = {};
@@ -143,7 +144,7 @@ export class AuthService {
       updateData.username = data.username.trim();
     }
     if (data.newPassword && data.newPassword.trim() !== '') {
-      updateData.password = data.newPassword.trim();
+      updateData.password = await bcrypt.hash(data.newPassword.trim(), 10);
     }
 
     const updatedAdmin = await this.prisma.admin.update({
@@ -153,7 +154,7 @@ export class AuthService {
 
     return {
       success: true,
-      message: 'HR Admin login credentials updated successfully.',
+      message: 'HR Admin login credentials updated and secured with bcrypt.',
       admin: {
         id: updatedAdmin.id,
         username: updatedAdmin.username,
