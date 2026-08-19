@@ -177,10 +177,21 @@ export default function VendorsManagementPage() {
     }
   };
 
-  const openAssignModal = (vendor: VendorItem) => {
+  const openAssignModal = async (vendor: VendorItem) => {
     setSelectedVendor(vendor);
     setSelectedAssessmentIds(vendor.assignedAssessments.map((a) => a.id));
     setShowAssignModal(true);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const aRes = await fetch(`${baseUrl}/api/v1/assessments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const aData = await aRes.json();
+      if (aData.success && Array.isArray(aData.assessments)) {
+        setAssessments(aData.assessments);
+      }
+    } catch {}
   };
 
   const handleSaveAssignments = async () => {
@@ -824,6 +835,10 @@ export default function VendorsManagementPage() {
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             a.status === "ACTIVE"
                               ? "bg-emerald-100 text-emerald-700"
+                              : a.status === "UPCOMING"
+                              ? "bg-sky-100 text-sky-700"
+                              : a.status === "EXPIRED"
+                              ? "bg-rose-100 text-rose-700"
                               : "bg-slate-100 text-slate-600"
                           }`}
                         >
