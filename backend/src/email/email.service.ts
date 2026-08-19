@@ -23,6 +23,11 @@ export class EmailService {
           fromEmail: process.env.SMTP_FROM_EMAIL || 'recruitment@greatcampus.in',
         },
       });
+    } else if (!config.fromName || config.fromName.toLowerCase().includes('niva') || config.fromName.toLowerCase().includes('bupa')) {
+      config = await this.prisma.smtpConfig.update({
+        where: { id: config.id },
+        data: { fromName: 'CCE Programme Team' },
+      });
     }
     return config;
   }
@@ -96,11 +101,12 @@ export class EmailService {
       const recipient = targetEmail || config.username || config.fromEmail;
       if (recipient) {
         const domain = config.fromEmail.includes('@') ? config.fromEmail.split('@')[1] : 'greatcampus.in';
+        const senderName = (!config.fromName || config.fromName.toLowerCase().includes('niva')) ? 'CCE Programme Team' : config.fromName;
         await transporter.sendMail({
-          from: `"${config.fromName}" <${config.fromEmail}>`,
+          from: `"${senderName}" <${config.fromEmail}>`,
           to: recipient,
           subject: 'SMTP Connection Test — CCE Assessment Portal',
-          text: `CCE Assessment Portal\n\nThis test email confirms that your authenticated SMTP mail server configuration (${config.host}:${config.port}) is working correctly!\n\nSender: ${config.fromName} (${config.fromEmail})\nTimestamp: ${new Date().toLocaleString()}`,
+          text: `CCE Assessment Portal\n\nThis test email confirms that your authenticated SMTP mail server configuration (${config.host}:${config.port}) is working correctly!\n\nSender: ${senderName} (${config.fromEmail})\nTimestamp: ${new Date().toLocaleString()}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 540px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
               <h2 style="color: #003F72; margin-top: 0;">CCE Assessment System</h2>
@@ -367,9 +373,10 @@ Website: https://greatcampus.in`;
       const transporter = await this.createTransporter();
       const senderDomain = config.fromEmail.includes('@') ? config.fromEmail.split('@')[1] : 'greatcampus.in';
       const cleanMessageId = `<cce-${candidate.id}-${Date.now()}@${senderDomain}>`;
+      const senderName = (!config.fromName || config.fromName.toLowerCase().includes('niva')) ? 'CCE Programme Team' : config.fromName;
 
       await transporter.sendMail({
-        from: `"${config.fromName}" <${config.fromEmail}>`,
+        from: `"${senderName}" <${config.fromEmail}>`,
         to: candidate.email,
         replyTo: config.fromEmail,
         subject,
