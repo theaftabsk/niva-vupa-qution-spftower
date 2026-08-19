@@ -16,7 +16,15 @@ import {
 } from "lucide-react";
 import CandidateReportModal from "@/components/CandidateReportModal";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.niva.greatcampus.in";
+const getApiBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host.includes("niva.greatcampus.in")) {
+      return "https://api.niva.greatcampus.in";
+    }
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+};
 
 interface ArchivedCandidate {
   id: string;
@@ -64,7 +72,8 @@ export default function ArchivePage() {
   const fetchArchived = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/candidates/archive/list`);
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/v1/candidates/archive/list`);
       if (res.ok) {
         const data = await res.json();
         setArchivedList(data.candidates || []);
@@ -87,7 +96,8 @@ export default function ArchivePage() {
 
     setRestoringId(id);
     try {
-      const res = await fetch(`${API_BASE_URL}/candidates/${id}/restore`, {
+      const baseUrl = getApiBaseUrl();
+      const res = await fetch(`${baseUrl}/api/v1/candidates/${id}/restore`, {
         method: "POST",
       });
 

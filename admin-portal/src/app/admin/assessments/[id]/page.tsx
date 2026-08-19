@@ -392,10 +392,37 @@ export default function AssessmentDashboardPage() {
     setDeletingCandidate(true);
     try {
       const baseUrl = getApiBaseUrl();
-      await fetch(`${baseUrl}/api/v1/candidates/${deleteCandidateTarget.id}`, { method: "DELETE" });
-      addToast("success", `Candidate '${deleteCandidateTarget.name}' deleted.`, "Candidate Deleted");
-      setDeleteCandidateTarget(null);
-      await loadDashboard();
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeName = "HR Administrator";
+      let activeId = "";
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeName = u.name || "Administrator";
+          activeId = u.id || "";
+        } catch {}
+      }
+
+      const res = await fetch(`${baseUrl}/api/v1/candidates/${deleteCandidateTarget.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: activeRole,
+          name: activeName,
+          id: activeId,
+          reason: "Archived from Assessment Details dashboard",
+        }),
+      });
+
+      if (res.ok) {
+        addToast("success", `Candidate '${deleteCandidateTarget.name}' has been safely moved to Archive & Bin.`, "Archived");
+        setDeleteCandidateTarget(null);
+        await loadDashboard();
+      } else {
+        addToast("error", "Failed to archive candidate.", "Error");
+      }
     } catch {
       addToast("error", "Failed to delete candidate.", "Error");
     } finally {

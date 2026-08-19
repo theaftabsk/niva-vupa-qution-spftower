@@ -15,6 +15,7 @@ conn.on('ready', () => {
     "cd /var/www/qution-softower || cd /var/www/niva-vupa-qution-spftower",
     "git pull origin main",
     "cd backend && npx prisma generate && npx prisma db push && npm run build",
+    "cd ../candidate-portal && npm run build",
     "cd ../admin-portal && npm run build",
     "pm2 restart all",
     "pm2 status"

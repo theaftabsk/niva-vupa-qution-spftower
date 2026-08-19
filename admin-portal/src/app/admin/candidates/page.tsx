@@ -154,8 +154,30 @@ export default function CandidatesManagementPage() {
     setDeletingCandidate(true);
     try {
       const baseUrl = getApiBaseUrl();
-      await fetch(`${baseUrl}/api/v1/candidates/${deleteCandidateTarget.id}`, { method: "DELETE" });
-      addToast("success", `Candidate '${deleteCandidateTarget.name}' deleted successfully.`, "Candidate Deleted");
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeName = "HR Administrator";
+      let activeId = "";
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeName = u.name || "Administrator";
+          activeId = u.id || "";
+        } catch {}
+      }
+
+      await fetch(`${baseUrl}/api/v1/candidates/${deleteCandidateTarget.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: activeRole,
+          name: activeName,
+          id: activeId,
+          reason: "Archived from Candidates evaluation list",
+        }),
+      });
+      addToast("success", `Candidate '${deleteCandidateTarget.name}' has been moved to Archive & Bin.`, "Candidate Archived");
       setDeleteCandidateTarget(null);
       await loadData();
     } catch {
