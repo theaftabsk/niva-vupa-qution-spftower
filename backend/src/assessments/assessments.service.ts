@@ -18,15 +18,28 @@ export class AssessmentsService {
     return tenant;
   }
 
-  async getAssessments(vendorId?: string) {
+  async getAssessments(vendorIdentifier?: string) {
     const whereClause: any = {
       status: { not: 'ARCHIVED' },
     };
 
-    if (vendorId) {
+    if (vendorIdentifier && vendorIdentifier.trim() !== '') {
+      const cleanId = vendorIdentifier.trim();
+      const vendor = await this.prisma.vendor.findFirst({
+        where: {
+          OR: [
+            { id: cleanId },
+            { vendorCode: cleanId },
+            { email: cleanId },
+          ],
+        },
+      });
+
+      const actualVendorId = vendor ? vendor.id : cleanId;
+
       whereClause.vendorAssignments = {
         some: {
-          vendorId,
+          vendorId: actualVendorId,
         },
       };
     }

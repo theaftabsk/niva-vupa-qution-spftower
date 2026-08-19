@@ -131,7 +131,7 @@ export default function AdminAssessmentsPage() {
         try {
           const u = JSON.parse(userStr);
           activeRole = u.role || "ADMIN";
-          activeVendorId = u.vendorId || u.id || null;
+          activeVendorId = u.vendorId || u.id || u.vendorCode || u.email || null;
           setUserRole(activeRole);
           setVendorId(activeVendorId);
         } catch {}
@@ -140,8 +140,6 @@ export default function AdminAssessmentsPage() {
       const headers: any = { Authorization: `Bearer ${token}` };
       const params = new URLSearchParams();
       if (activeRole === "VENDOR" && activeVendorId) {
-        headers["x-vendor-id"] = activeVendorId;
-        headers["x-user-role"] = "VENDOR";
         params.append("vendorId", activeVendorId);
       }
 

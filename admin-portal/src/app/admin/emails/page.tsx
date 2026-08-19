@@ -61,7 +61,6 @@ export default function EmailAuditPage() {
 
       const headers: any = {
         Authorization: `Bearer ${token}`,
-        ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
       };
 
       const res = await fetch(`${baseUrl}/api/v1/emails/logs?${params.toString()}`, { headers });

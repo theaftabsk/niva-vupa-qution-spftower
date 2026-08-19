@@ -49,7 +49,7 @@ async function bootstrap() {
       }
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: 'Content-Type,Accept,Authorization,X-Requested-With,x-api-key',
+    allowedHeaders: 'Content-Type,Accept,Authorization,X-Requested-With,x-api-key,x-user-role,x-vendor-id,X-User-Role,X-Vendor-Id',
     credentials: true,
   });
 
