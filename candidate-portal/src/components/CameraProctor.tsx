@@ -36,7 +36,7 @@ export default function CameraProctor({
   useEffect(() => { onWarningRef.current = onWarningTrigger; });
 
   const SCHEDULED_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-  const WARNING_COOLDOWN_MS = 10000; // 10 seconds cooldown between warnings
+  const WARNING_COOLDOWN_MS = 30000; // 30 seconds cooldown between warnings (minimal disruption)
 
   // ── Helper: Upload screenshot ──────────────────────────────────────────
   const uploadScreenshot = useCallback(async (type: "SCHEDULED" | "WARNING", eventType?: string) => {
@@ -49,16 +49,21 @@ export default function CameraProctor({
       const ctx = offCanvas.getContext("2d");
       if (!ctx) return;
       ctx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
-      const imageBase64 = offCanvas.toDataURL("image/jpeg", 0.65);
+      const dataUrl = offCanvas.toDataURL("image/jpeg", 0.65);
 
       const baseUrl = getApiBaseUrl();
-      await fetch(`${baseUrl}/api/v1/proctoring/upload-screenshot`, {
+      await fetch(`${baseUrl}/api/v1/candidates/proctoring/upload-screenshot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attemptId, type, eventType, imageBase64 }),
+        body: JSON.stringify({
+          attemptId,
+          screenshotDataUrl: dataUrl,
+          type,
+          eventType: eventType || "ROUTINE",
+        }),
       });
-    } catch (err) {
-      console.error("Screenshot upload failed:", err);
+    } catch {
+      // non-critical — ignore network error on screenshot upload
     }
   }, [attemptId, cameraActive]);
 
@@ -67,46 +72,52 @@ export default function CameraProctor({
 
   // ── Load face-api.js TinyFaceDetector model ────────────────────────────
   useEffect(() => {
-    let cancelled = false;
+    let isMounted = true;
     async function loadModels() {
       try {
         // Dynamically import face-api.js only on client side
         const faceapi = await import("face-api.js");
         await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
-        if (!cancelled) {
-          console.log("✅ face-api.js TinyFaceDetector model loaded");
+        if (isMounted) {
           setModelsLoaded(true);
+          console.log("✅ face-api.js TinyFaceDetector model loaded");
         }
       } catch (err) {
-        console.error("Failed to load face-api models:", err);
+        if (isMounted) {
+          console.error("Failed to load face-api models:", err);
+          // Fallback: allow exam even if model fails to load
+          setModelsLoaded(true);
+        }
       }
     }
     loadModels();
-    return () => { cancelled = true; };
+    return () => { isMounted = false; };
   }, []);
 
-  // ── Start camera ───────────────────────────────────────────────────────
+  // ── Start Webcam ───────────────────────────────────────────────────────
   useEffect(() => {
     async function startCamera() {
       try {
-        const mediaStream = await navigator.mediaDevices.getUserMedia({
+        const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" },
           audio: false,
         });
-        streamRef.current = mediaStream;
+        streamRef.current = stream;
         if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream;
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
         }
         setCameraActive(true);
-      } catch (err: any) {
-        console.error("Camera error:", err);
+      } catch (err) {
+        console.error("Webcam access error:", err);
         setCameraActive(false);
         setFaceStatus("CAMERA_OFF");
         if (onVerificationRef.current) {
-          onVerificationRef.current(false, "Camera permission denied or unavailable.");
+          onVerificationRef.current(false, "Camera access denied. Please allow camera permissions.");
         }
       }
     }
+
     startCamera();
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -116,14 +127,14 @@ export default function CameraProctor({
   const noFaceStreakRef = useRef<number>(0);
   const multiFaceStreakRef = useRef<number>(0);
 
-  // ── Face detection loop (face-api.js TinyFaceDetector - Medium Sensitivity) ─
+  // ── Face detection loop (face-api.js TinyFaceDetector - Forgiving / Lenient Mode) ─
   useEffect(() => {
     if (!cameraActive || !modelsLoaded) return;
 
     async function runDetection() {
       const faceapi = await import("face-api.js");
-      // Medium Sensitivity: scoreThreshold 0.38 (balanced), inputSize 320 (precise multi-face bounding)
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.38 });
+      // Lenient Threshold: scoreThreshold 0.20 (handles dim light, glasses, slight tilts gracefully)
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.20 });
 
       detectionLoopRef.current = setInterval(async () => {
         const video = videoRef.current;
@@ -137,8 +148,8 @@ export default function CameraProctor({
             noFaceStreakRef.current += 1;
             multiFaceStreakRef.current = 0;
 
-            // Require 3 consecutive failed checks (3 seconds) before triggering NO_FACE alert
-            if (noFaceStreakRef.current >= 3) {
+            // Require 10 consecutive failed checks (10 full seconds of complete absence) before triggering NO_FACE alert
+            if (noFaceStreakRef.current >= 10) {
               setFaceStatus("NO_FACE");
               if (onVerificationRef.current) onVerificationRef.current(false, "No face detected in camera.");
 
@@ -146,7 +157,7 @@ export default function CameraProctor({
               if (now - lastWarningTimeRef.current > WARNING_COOLDOWN_MS) {
                 lastWarningTimeRef.current = now;
                 if (onWarningRef.current) {
-                  onWarningRef.current("FACE_NOT_DETECTED", "⚠️ Face not detected! Please ensure your face is clearly visible.");
+                  onWarningRef.current("FACE_NOT_DETECTED", "⚠️ Face not detected for 10+ seconds. Please stay in front of the camera.");
                 }
                 uploadScreenshotRef.current("WARNING", "FACE_NOT_DETECTED");
               }
@@ -156,8 +167,8 @@ export default function CameraProctor({
             multiFaceStreakRef.current += 1;
             noFaceStreakRef.current = 0;
 
-            // Require 2 consecutive checks (2 seconds) of multiple faces before triggering MULTIPLE_FACES alert
-            if (multiFaceStreakRef.current >= 2) {
+            // Require 6 consecutive checks (6 seconds) of multiple faces before triggering MULTIPLE_FACES alert
+            if (multiFaceStreakRef.current >= 6) {
               setFaceStatus("MULTIPLE_FACES");
               if (onVerificationRef.current) onVerificationRef.current(false, "Multiple faces detected.");
 
@@ -172,7 +183,7 @@ export default function CameraProctor({
             }
 
           } else {
-            // Exactly 1 face detected — OK!
+            // Face detected — All Good!
             noFaceStreakRef.current = 0;
             multiFaceStreakRef.current = 0;
             setFaceStatus("FACE_OK");
