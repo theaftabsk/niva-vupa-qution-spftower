@@ -35,7 +35,7 @@ export default function CameraProctor({
   useEffect(() => { onVerificationRef.current = onVerificationChange; });
   useEffect(() => { onWarningRef.current = onWarningTrigger; });
 
-  const SCHEDULED_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+  const SCHEDULED_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes interval
   const WARNING_COOLDOWN_MS = 30000; // 30 seconds cooldown between warnings (minimal disruption)
 
   // ── Helper: Upload screenshot ──────────────────────────────────────────
@@ -202,7 +202,7 @@ export default function CameraProctor({
     };
   }, [cameraActive, modelsLoaded]);
 
-  // ── Scheduled 15-minute screenshot (Initial baseline at 3s + every 15 mins) ──
+  // ── Scheduled 20-minute screenshot (Initial baseline at 3s + every 20 mins) ──
   useEffect(() => {
     if (mode !== "exam" || !attemptId || !cameraActive) return;
 
@@ -212,10 +212,10 @@ export default function CameraProctor({
       uploadScreenshotRef.current("SCHEDULED", "EXAM_START_BASELINE");
     }, 3000);
 
-    // Recurring 15-minute interval screenshot capture
+    // Recurring 20-minute interval screenshot capture
     scheduledTimerRef.current = setInterval(() => {
-      console.log("📸 Scheduled 15-min proctoring screenshot capture...");
-      uploadScreenshotRef.current("SCHEDULED", "PERIODIC_15_MIN");
+      console.log("📸 Scheduled 20-min proctoring screenshot capture...");
+      uploadScreenshotRef.current("SCHEDULED", "PERIODIC_20_MIN");
     }, SCHEDULED_INTERVAL_MS);
 
     return () => {
