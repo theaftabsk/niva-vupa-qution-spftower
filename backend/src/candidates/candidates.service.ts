@@ -1895,28 +1895,19 @@ export class CandidatesService {
     sheet1.addRow(['Assessment Title', targetAssessment ? targetAssessment.name : 'All Active Assessment Batches']);
     sheet1.addRow(['Generated Date', new Date().toLocaleString()]);
     sheet1.addRow(['Duration', `${targetAssessment?.durationMins || 45} Minutes (60 Questions)`]);
-    sheet1.addRow(['Passing Score Threshold', `${targetAssessment?.passingPercentage || 50}%`]);
 
     const totalCands = candidates.length;
     let completedCands = 0;
     let inProgressCands = 0;
     let notStartedCands = 0;
-    let qualifiedCands = 0;
-    let notQualifiedCands = 0;
     let lockedCands = 0;
 
     candidates.forEach((c) => {
       const att = c.attempts[0];
       if (!att) notStartedCands++;
-      else if (att.status === 'COMPLETED') {
-        completedCands++;
-        if (att.isPassed || att.percentage >= (att.passingPercentageSnapshot || 50)) qualifiedCands++;
-        else notQualifiedCands++;
-      } else if (att.status === 'LOCKED') {
-        lockedCands++;
-      } else if (att.status === 'IN_PROGRESS') {
-        inProgressCands++;
-      }
+      else if (att.status === 'COMPLETED') completedCands++;
+      else if (att.status === 'LOCKED') lockedCands++;
+      else if (att.status === 'IN_PROGRESS') inProgressCands++;
     });
 
     sheet1.addRow([]);
@@ -1926,8 +1917,6 @@ export class CandidatesService {
 
     sheet1.addRow(['Total Assigned Candidates', totalCands, '100%']);
     sheet1.addRow(['Completed Exams', completedCands, totalCands > 0 ? `${Math.round((completedCands / totalCands) * 100)}%` : '0%']);
-    sheet1.addRow(['Qualified Candidates', qualifiedCands, completedCands > 0 ? `${Math.round((qualifiedCands / completedCands) * 100)}%` : '0%']);
-    sheet1.addRow(['Not Qualified Candidates', notQualifiedCands, completedCands > 0 ? `${Math.round((notQualifiedCands / completedCands) * 100)}%` : '0%']);
     sheet1.addRow(['In Progress / Active', inProgressCands, totalCands > 0 ? `${Math.round((inProgressCands / totalCands) * 100)}%` : '0%']);
     sheet1.addRow(['Locked / Flagged Sessions', lockedCands, totalCands > 0 ? `${Math.round((lockedCands / totalCands) * 100)}%` : '0%']);
     sheet1.addRow(['Not Started', notStartedCands, totalCands > 0 ? `${Math.round((notStartedCands / totalCands) * 100)}%` : '0%']);
@@ -1946,7 +1935,6 @@ export class CandidatesService {
       { header: 'Status', key: 'status', width: 16 },
       { header: 'Score (Obtained/60)', key: 'score', width: 20 },
       { header: 'Percentage', key: 'pct', width: 14 },
-      { header: 'Result', key: 'result', width: 16 },
       { header: 'Start Time', key: 'startedAt', width: 20 },
       { header: 'End Time', key: 'submittedAt', width: 20 },
       { header: 'Time Taken', key: 'timeTaken', width: 16 },
@@ -1966,7 +1954,7 @@ export class CandidatesService {
         timeTaken = `${Math.floor(sec / 60)}m ${sec % 60}s`;
       }
 
-      const row = sheet2.addRow({
+      sheet2.addRow({
         sno: idx + 1,
         name: c.name,
         email: c.email,
@@ -1976,19 +1964,10 @@ export class CandidatesService {
         status: att ? att.status : c.status,
         score: att ? `${att.score} / ${att.totalPossibleScore || 60}` : '—',
         pct: att ? `${att.percentage}%` : '—',
-        result: att ? (att.status === 'LOCKED' ? 'LOCKED' : (att.isPassed ? 'QUALIFIED' : 'NOT QUALIFIED')) : 'NOT STARTED',
         startedAt: att?.startedAt ? new Date(att.startedAt).toLocaleString() : '—',
         submittedAt: att?.submittedAt ? new Date(att.submittedAt).toLocaleString() : '—',
         timeTaken,
       });
-
-      // Highlight result cell
-      const resultCell = row.getCell('result');
-      if (resultCell.value === 'QUALIFIED') {
-        resultCell.font = { color: { argb: 'FF166534' }, bold: true };
-      } else if (resultCell.value === 'NOT QUALIFIED' || resultCell.value === 'LOCKED') {
-        resultCell.font = { color: { argb: 'FF991B1B' }, bold: true };
-      }
     });
 
     // ──────────────────────────────────────────────────────────────────────────
