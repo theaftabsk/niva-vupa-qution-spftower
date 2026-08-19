@@ -19,6 +19,8 @@ export default function EmailAuditPage() {
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [selectedErrorLog, setSelectedErrorLog] = useState<any | null>(null);
+  const [userRole, setUserRole] = useState<string>("ADMIN");
+  const [vendorId, setVendorId] = useState<string | null>(null);
 
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -33,13 +35,36 @@ export default function EmailAuditPage() {
     setLoading(true);
     try {
       const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeRole = "ADMIN";
+      let activeVendorId: string | null = null;
+
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeRole = u.role || "ADMIN";
+          activeVendorId = u.vendorId || u.id || null;
+          setUserRole(activeRole);
+          setVendorId(activeVendorId);
+        } catch {}
+      }
+
       const params = new URLSearchParams();
       params.append("page", page.toString());
       params.append("limit", "50");
       if (statusFilter !== "ALL") params.append("status", statusFilter);
       if (searchTerm.trim()) params.append("search", searchTerm.trim());
+      if (activeRole === "VENDOR" && activeVendorId) {
+        params.append("vendorId", activeVendorId);
+      }
 
-      const res = await fetch(`${baseUrl}/api/v1/emails/logs?${params.toString()}`);
+      const headers: any = {
+        Authorization: `Bearer ${token}`,
+        ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
+      };
+
+      const res = await fetch(`${baseUrl}/api/v1/emails/logs?${params.toString()}`, { headers });
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs || []);
@@ -83,7 +108,7 @@ export default function EmailAuditPage() {
 
   const sentCount = logs.filter((l) => l.status === "SENT" || l.status === "DELIVERED").length;
   const failedCount = logs.filter((l) => l.status === "FAILED").length;
-  const hasAuthError = logs.some((l) => l.errorMessage && (l.errorMessage.includes("Authentication") || l.errorMessage.includes("530")));
+  const hasAuthError = userRole !== "VENDOR" && logs.some((l) => l.errorMessage && (l.errorMessage.includes("Authentication") || l.errorMessage.includes("530")));
 
   return (
     <div style={{ padding: "28px 36px", background: "#F8FAFC", minHeight: "calc(100vh - 64px)" }}>
@@ -95,7 +120,9 @@ export default function EmailAuditPage() {
             Email Audit & Delivery Tracking
           </h1>
           <p style={{ fontSize: "13px", color: "#64748B", margin: 0 }}>
-            Real-time delivery status for all candidate assessment invitations dispatched via Authenticated SMTP
+            {userRole === "VENDOR"
+              ? "Real-time delivery status for candidate invitations sent under your vendor account"
+              : "Real-time delivery status for all candidate assessment invitations dispatched via Authenticated SMTP"}
           </p>
         </div>
 
@@ -107,12 +134,14 @@ export default function EmailAuditPage() {
             <RefreshCw size={14} /> Refresh Logs
           </button>
 
-          <Link
-            href="/admin/settings"
-            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "9px 18px", borderRadius: "10px", background: "#003F72", color: "white", fontSize: "13px", fontWeight: 800, textDecoration: "none" }}
-          >
-            <Settings size={14} /> Configure SMTP Server
-          </Link>
+          {userRole !== "VENDOR" && (
+            <Link
+              href="/admin/settings"
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "9px 18px", borderRadius: "10px", background: "#003F72", color: "white", fontSize: "13px", fontWeight: 800, textDecoration: "none" }}
+            >
+              <Settings size={14} /> Configure SMTP Server
+            </Link>
+          )}
         </div>
       </div>
 

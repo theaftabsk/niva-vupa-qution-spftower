@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, Headers } from '@nestjs/common';
 import { EmailService } from './email.service';
 
 @Controller('api/v1/emails')
@@ -57,7 +57,12 @@ export class EmailController {
     @Query('assessmentId') assessmentId?: string,
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('vendorId') vendorId?: string,
+    @Headers('x-vendor-id') headerVendorId?: string,
+    @Headers('x-user-role') userRole?: string,
   ) {
-    return this.emailService.getEmailLogs({ page, limit, assessmentId, status, search });
+    const effectiveVendorId = userRole === 'VENDOR' ? (headerVendorId || vendorId) : vendorId;
+    return this.emailService.getEmailLogs({ page, limit, assessmentId, status, search, vendorId: effectiveVendorId });
   }
 }
+

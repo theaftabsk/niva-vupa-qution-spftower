@@ -27,7 +27,6 @@ export class AssessmentsService {
       whereClause.vendorAssignments = {
         some: {
           vendorId,
-          status: 'ACTIVE',
         },
       };
     }

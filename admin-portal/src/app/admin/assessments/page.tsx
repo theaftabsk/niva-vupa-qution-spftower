@@ -131,19 +131,22 @@ export default function AdminAssessmentsPage() {
         try {
           const u = JSON.parse(userStr);
           activeRole = u.role || "ADMIN";
-          activeVendorId = u.vendorId || null;
+          activeVendorId = u.vendorId || u.id || null;
           setUserRole(activeRole);
           setVendorId(activeVendorId);
         } catch {}
       }
 
       const headers: any = { Authorization: `Bearer ${token}` };
+      const params = new URLSearchParams();
       if (activeRole === "VENDOR" && activeVendorId) {
         headers["x-vendor-id"] = activeVendorId;
         headers["x-user-role"] = "VENDOR";
+        params.append("vendorId", activeVendorId);
       }
 
-      const res  = await fetch(`${getApiBaseUrl()}/api/v1/assessments`, { headers });
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/assessments${queryStr}`, { headers });
       const data = await res.json();
       if (data.success) setSessions(data.assessments || []);
     } catch { /* silent */ } finally { setLoading(false); }

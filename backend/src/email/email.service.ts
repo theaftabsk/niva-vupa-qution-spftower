@@ -543,6 +543,7 @@ Website: https://greatcampus.in`;
     assessmentId?: string;
     status?: string;
     search?: string;
+    vendorId?: string;
   }) {
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 50;
@@ -551,6 +552,11 @@ Website: https://greatcampus.in`;
     const where: any = {};
     if (query.assessmentId) where.assessmentId = query.assessmentId;
     if (query.status && query.status !== 'ALL') where.status = query.status;
+    if (query.vendorId) {
+      where.candidate = {
+        vendorId: query.vendorId,
+      };
+    }
     if (query.search) {
       where.OR = [
         { recipientEmail: { contains: query.search, mode: 'insensitive' } },
