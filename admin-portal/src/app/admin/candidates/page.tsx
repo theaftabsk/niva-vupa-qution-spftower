@@ -385,7 +385,7 @@ export default function CandidatesManagementPage() {
                   <th className="py-3.5 px-4 whitespace-nowrap">Candidate Details</th>
                   <th className="py-3.5 px-4 whitespace-nowrap">CRM Application ID</th>
                   <th className="py-3.5 px-4 whitespace-nowrap">Exam Session</th>
-                  <th className="py-3.5 px-4 whitespace-nowrap">Vendor / Agency</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Vendor</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Security Warnings</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
                   <th className="py-3.5 px-4 text-center whitespace-nowrap">Score Marks</th>

@@ -326,7 +326,7 @@ export default function VendorsManagementPage() {
               <Building2 size={22} />
             </span>
             <div>
-              <h1 className="text-xl font-black text-slate-900">Vendors & Agency Management</h1>
+              <h1 className="text-xl font-black text-slate-900">Vendors Management</h1>
               <p className="text-xs text-slate-500 font-medium">
                 Create vendor logins, assign specific assessments, and monitor isolated candidate batches.
               </p>
@@ -612,7 +612,7 @@ export default function VendorsManagementPage() {
             <form onSubmit={handleCreateVendor} className="space-y-4 mt-4 text-xs">
               <div>
                 <label className="block font-extrabold text-slate-700 mb-1">
-                  Vendor / Agency Name *
+                  Vendor Name *
                 </label>
                 <input
                   type="text"
