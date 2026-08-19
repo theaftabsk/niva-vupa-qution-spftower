@@ -188,12 +188,32 @@ export default function AdminAssessmentsPage() {
     setSaving(true);
     setFormError("");
     try {
+      let isoActiveFrom: string | null | undefined = undefined;
+      if (form.activeFrom && form.activeFrom.trim() !== "") {
+        const d = new Date(form.activeFrom);
+        if (!isNaN(d.getTime())) {
+          isoActiveFrom = d.toISOString();
+        }
+      } else if (isEdit) {
+        isoActiveFrom = null;
+      }
+
+      let isoActiveUntil: string | null | undefined = undefined;
+      if (form.activeUntil && form.activeUntil.trim() !== "") {
+        const d = new Date(form.activeUntil);
+        if (!isNaN(d.getTime())) {
+          isoActiveUntil = d.toISOString();
+        }
+      } else if (isEdit) {
+        isoActiveUntil = null;
+      }
+
       const payload: any = {
         name: form.name.trim(),
         description: form.description || undefined,
-        durationMins: Number(form.durationMins) || 45,
-        activeFrom: form.activeFrom || undefined,
-        activeUntil: form.activeUntil || undefined,
+        durationMins: 45,
+        activeFrom: isoActiveFrom,
+        activeUntil: isoActiveUntil,
         passingPercentage: Number(form.passingPercentage),
         maxProctorWarnings: Number(form.maxProctorWarnings),
         status: form.status,

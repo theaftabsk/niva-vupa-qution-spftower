@@ -143,12 +143,25 @@ export class AssessmentsService {
     const slug = data.slug || (data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now().toString().slice(-4));
 
     const now = new Date();
-    let finalActiveFrom = data.activeFrom ? new Date(data.activeFrom) : null;
-    let finalActiveUntil = data.activeUntil ? new Date(data.activeUntil) : null;
+    let finalActiveFrom: Date | null | undefined = undefined;
+    if (data.activeFrom === null) {
+      finalActiveFrom = null;
+    } else if (data.activeFrom && typeof data.activeFrom === 'string' && data.activeFrom.trim() !== '') {
+      const d = new Date(data.activeFrom);
+      if (!isNaN(d.getTime())) finalActiveFrom = d;
+    }
+
+    let finalActiveUntil: Date | null | undefined = undefined;
+    if (data.activeUntil === null) {
+      finalActiveUntil = null;
+    } else if (data.activeUntil && typeof data.activeUntil === 'string' && data.activeUntil.trim() !== '') {
+      const d = new Date(data.activeUntil);
+      if (!isNaN(d.getTime())) finalActiveUntil = d;
+    }
 
     if (!data.id) {
-      if (!finalActiveFrom) finalActiveFrom = now;
-      if (!finalActiveUntil) finalActiveUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      if (finalActiveFrom === undefined) finalActiveFrom = now;
+      if (finalActiveUntil === undefined) finalActiveUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     }
 
     if (data.id && data.status === 'ACTIVE') {
