@@ -8,8 +8,28 @@ export class CandidatesController {
 
   // --- DEDICATED ASSESSMENT DASHBOARD ---
   @Get('assessment-dashboard/:id')
-  async getAssessmentDashboard(@Param('id') id: string) {
-    return this.candidatesService.getAssessmentDashboard(id);
+  async getAssessmentDashboard(
+    @Param('id') id: string,
+    @Query('vendorId') vendorId?: string,
+    @Headers('x-vendor-id') headerVendorId?: string,
+  ) {
+    const effectiveVendorId = vendorId || headerVendorId;
+    return this.candidatesService.getAssessmentDashboard(id, effectiveVendorId);
+  }
+
+  @Post(':id/assign-vendor')
+  async assignCandidateVendor(
+    @Param('id') candidateId: string,
+    @Body() body: { vendorId: string | null },
+  ) {
+    return this.candidatesService.assignCandidateVendor(candidateId, body.vendorId);
+  }
+
+  @Post('bulk-assign-vendor')
+  async bulkAssignCandidateVendor(
+    @Body() body: { candidateIds: string[]; vendorId: string | null },
+  ) {
+    return this.candidatesService.bulkAssignCandidateVendor(body.candidateIds, body.vendorId);
   }
 
   @Post('upload-excel')

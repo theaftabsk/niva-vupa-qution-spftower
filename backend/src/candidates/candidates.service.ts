@@ -1386,12 +1386,31 @@ export class CandidatesService {
   }
 
   // ─── DEDICATED ASSESSMENT DASHBOARD ────────────────────────────────────────
-  async getAssessmentDashboard(assessmentId: string) {
+  async getAssessmentDashboard(assessmentId: string, vendorIdentifier?: string) {
+    let resolvedVendorId: string | undefined = undefined;
+    if (vendorIdentifier && vendorIdentifier.trim() !== '') {
+      const cleanId = vendorIdentifier.trim();
+      const vendor = await this.prisma.vendor.findFirst({
+        where: {
+          OR: [
+            { id: cleanId },
+            { vendorCode: cleanId },
+            { email: cleanId },
+          ],
+        },
+      });
+      resolvedVendorId = vendor ? vendor.id : cleanId;
+    }
+
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: {
         candidates: {
+          where: resolvedVendorId ? { vendorId: resolvedVendorId } : {},
           include: {
+            vendor: {
+              select: { id: true, name: true, vendorCode: true },
+            },
             attempts: {
               orderBy: { startedAt: 'desc' },
               include: {
@@ -1451,6 +1470,8 @@ export class CandidatesService {
         emailStatus: cand.emailStatus || 'PENDING',
         emailSentAt: cand.emailSentAt,
         status,
+        vendorId: cand.vendorId || null,
+        vendor: cand.vendor || null,
         createdAt: cand.createdAt,
         uniqueExamLink: `${frontendBaseUrl}/${assessment.slug}?token=${cand.secureToken || cand.id}`,
         attempt: latestAttempt ? {
@@ -1497,6 +1518,53 @@ export class CandidatesService {
         notQualifiedCount,
       },
       candidates: candidateList,
+    };
+  }
+
+  // ─── ASSIGN / REASSIGN CANDIDATE TO VENDOR ────────────────────────────────
+  async assignCandidateVendor(candidateId: string, vendorId: string | null) {
+    const candidate = await this.prisma.candidate.findUnique({ where: { id: candidateId } });
+    if (!candidate) throw new NotFoundException('Candidate not found.');
+
+    if (vendorId) {
+      const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
+      if (!vendor) throw new NotFoundException('Target vendor not found.');
+    }
+
+    const updated = await this.prisma.candidate.update({
+      where: { id: candidateId },
+      data: { vendorId: vendorId || null },
+      include: {
+        vendor: { select: { id: true, name: true, vendorCode: true } },
+      },
+    });
+
+    return {
+      success: true,
+      message: vendorId ? `Candidate assigned to vendor successfully.` : `Candidate moved to Direct Admin.`,
+      candidate: updated,
+    };
+  }
+
+  async bulkAssignCandidateVendor(candidateIds: string[], vendorId: string | null) {
+    if (!candidateIds || candidateIds.length === 0) {
+      return { success: true, updatedCount: 0 };
+    }
+
+    if (vendorId) {
+      const vendor = await this.prisma.vendor.findUnique({ where: { id: vendorId } });
+      if (!vendor) throw new NotFoundException('Target vendor not found.');
+    }
+
+    const result = await this.prisma.candidate.updateMany({
+      where: { id: { in: candidateIds } },
+      data: { vendorId: vendorId || null },
+    });
+
+    return {
+      success: true,
+      message: `${result.count} candidate(s) successfully assigned.`,
+      updatedCount: result.count,
     };
   }
 

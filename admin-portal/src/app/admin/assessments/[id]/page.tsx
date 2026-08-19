@@ -83,17 +83,18 @@ export default function AssessmentDashboardPage() {
         try {
           const u = JSON.parse(userStr);
           activeRole = u.role || "ADMIN";
-          activeVendorId = u.vendorId || null;
+          activeVendorId = u.vendorId || u.id || u.vendorCode || u.email || null;
         } catch {}
       }
 
-      const headers: any = { Authorization: `Bearer ${token}` };
+      const params = new URLSearchParams();
       if (activeRole === "VENDOR" && activeVendorId) {
-        headers["x-vendor-id"] = activeVendorId;
-        headers["x-user-role"] = "VENDOR";
+        params.append("vendorId", activeVendorId);
       }
 
-      const res = await fetch(`${baseUrl}/api/v1/candidates/assessment-dashboard/${assessmentId}`, { headers });
+      const headers: any = { Authorization: `Bearer ${token}` };
+      const queryStr = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`${baseUrl}/api/v1/candidates/assessment-dashboard/${assessmentId}${queryStr}`, { headers });
       const resData = await res.json();
       if (resData.success) {
         setData(resData);

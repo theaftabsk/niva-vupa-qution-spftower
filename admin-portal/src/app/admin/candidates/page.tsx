@@ -49,6 +49,17 @@ export default function CandidatesManagementPage() {
   const [resetCandidateTarget, setResetCandidateTarget] = useState<{ id: string; name: string; email: string } | null>(null);
   const [resettingCandidate, setResettingCandidate] = useState(false);
 
+  // Assign Vendor Modal State
+  const [assignCandidateTarget, setAssignCandidateTarget] = useState<any | null>(null);
+  const [targetVendorId, setTargetVendorId] = useState<string>("");
+  const [savingAssignment, setSavingAssignment] = useState(false);
+
+  // Bulk Selection State
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+  const [bulkVendorModal, setBulkVendorModal] = useState(false);
+  const [bulkTargetVendorId, setBulkTargetVendorId] = useState<string>("");
+  const [savingBulkAssignment, setSavingBulkAssignment] = useState(false);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -62,7 +73,7 @@ export default function CandidatesManagementPage() {
         try {
           const u = JSON.parse(userStr);
           activeRole = u.role || "ADMIN";
-          activeVendorId = u.vendorId || null;
+          activeVendorId = u.vendorId || u.id || u.vendorCode || u.email || null;
           setUserRole(activeRole);
           setLoggedVendorId(activeVendorId);
         } catch {}
@@ -77,10 +88,7 @@ export default function CandidatesManagementPage() {
 
       // Fetch candidates
       const candRes = await fetch(`${baseUrl}/api/v1/candidates?${params.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const candData = await candRes.json();
       if (candData.success) {
@@ -89,10 +97,7 @@ export default function CandidatesManagementPage() {
 
       // Fetch assessment list for dropdown
       const assessRes = await fetch(`${baseUrl}/api/v1/assessments`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          ...(activeRole === "VENDOR" && activeVendorId ? { "x-vendor-id": activeVendorId, "x-user-role": "VENDOR" } : {}),
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       const assessData = await assessRes.json();
       if (assessData.success) {
@@ -195,6 +200,41 @@ export default function CandidatesManagementPage() {
   const handleDownloadSingleExcel = (candidateId: string) => {
     const baseUrl = getApiBaseUrl();
     window.open(`${baseUrl}/api/v1/candidates/${candidateId}/export-excel`, "_blank");
+  };
+
+  const handleOpenAssignVendor = (cand: any) => {
+    setAssignCandidateTarget(cand);
+    setTargetVendorId(cand.vendorId || "");
+  };
+
+  const handleSaveVendorAssignment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignCandidateTarget) return;
+    setSavingAssignment(true);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const res = await fetch(`${baseUrl}/api/v1/candidates/${assignCandidateTarget.id}/assign-vendor`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ vendorId: targetVendorId || null }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        addToast("success", data.message || "Candidate vendor assigned successfully.", "Vendor Assigned");
+        setAssignCandidateTarget(null);
+        await loadData();
+      } else {
+        addToast("error", data.message || "Failed to assign vendor.", "Assignment Error");
+      }
+    } catch {
+      addToast("error", "Error connecting to server.", "Network Error");
+    } finally {
+      setSavingAssignment(false);
+    }
   };
 
   const downloadExcelReport = () => {
@@ -548,6 +588,18 @@ export default function CandidatesManagementPage() {
                             </>
                           )}
 
+                          {/* Assign Vendor Button for HR Admin */}
+                          {userRole !== "VENDOR" && (
+                            <button
+                              onClick={() => handleOpenAssignVendor(c)}
+                              title="Assign / Reassign Candidate to Vendor"
+                              className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-[11px] rounded-lg border border-blue-200 transition flex items-center space-x-1 cursor-pointer"
+                            >
+                              <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Assign Vendor</span>
+                            </button>
+                          )}
+
                           {/* Reset Candidate Attempt & Re-invite Button */}
                           <button
                             onClick={() => setResetCandidateTarget({ id: c.id, name: c.name, email: c.email })}
@@ -644,6 +696,73 @@ export default function CandidatesManagementPage() {
         onConfirm={confirmResetCandidate}
         onCancel={() => { if (!resettingCandidate) setResetCandidateTarget(null); }}
       />
+
+      {/* Assign Candidate to Vendor Modal */}
+      {assignCandidateTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">Assign Candidate to Vendor</h3>
+                  <p className="text-xs text-slate-500 font-medium">Link candidate batch to a partner vendor</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setAssignCandidateTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="my-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+              <div className="font-extrabold text-slate-800">{assignCandidateTarget.name}</div>
+              <div className="text-slate-500">{assignCandidateTarget.email} • {assignCandidateTarget.phone}</div>
+              <div className="text-[11px] text-blue-700 font-bold">App ID: {assignCandidateTarget.applicationId || "N/A"}</div>
+            </div>
+
+            <form onSubmit={handleSaveVendorAssignment} className="space-y-4">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">Select Target Vendor *</label>
+                <select
+                  value={targetVendorId}
+                  onChange={(e) => setTargetVendorId(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                >
+                  <option value="">Direct / Admin (No Vendor)</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.name} ({v.vendorCode}) — {v.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setAssignCandidateTarget(null)}
+                  disabled={savingAssignment}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingAssignment}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {savingAssignment ? "Saving..." : "Save Assignment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modern Floating Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
