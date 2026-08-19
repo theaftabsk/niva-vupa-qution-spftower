@@ -250,9 +250,21 @@ export class CandidatesController {
     return result;
   }
 
+  @Get('archive/list')
+  async getArchivedCandidates() {
+    return this.candidatesService.getArchivedCandidates();
+  }
+
+  @Post(':id/restore')
+  async restoreCandidate(@Param('id') id: string) {
+    return this.candidatesService.restoreCandidate(id);
+  }
+
   @Delete(':id')
-  async deleteCandidate(@Param('id') id: string) {
-    await this.candidatesService.deleteCandidate(id);
-    return { success: true, message: 'Candidate deleted' };
+  async deleteCandidate(
+    @Param('id') id: string,
+    @Body() body?: { role?: string; id?: string; name?: string; reason?: string }
+  ) {
+    return this.candidatesService.deleteCandidate(id, body);
   }
 }

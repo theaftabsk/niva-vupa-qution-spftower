@@ -20,6 +20,7 @@ const pageTitles: Record<string, string> = {
   "/admin/emails": "Email Audit & Invites",
   "/admin/questions": "Question Bank CMS",
   "/admin/settings": "System Settings",
+  "/admin/archive": "Archive & Recycle Bin",
 };
 
 export default function Navbar({ onMobileSidebarToggle, isCollapsed, onToggleCollapse }: NavbarProps) {

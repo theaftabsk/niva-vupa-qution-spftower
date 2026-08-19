@@ -121,6 +121,12 @@ model Candidate {
   emailStatus    String        @default("PENDING") // PENDING, SENT, DELIVERED, FAILED
   emailSentAt    DateTime?
   status         String        @default("REGISTERED") // REGISTERED, IN_PROGRESS, COMPLETED, DISQUALIFIED
+  isDeleted      Boolean       @default(false)
+  deletedAt      DateTime?
+  deletedByRole  String?       // "VENDOR" | "ADMIN"
+  deletedById    String?
+  deletedByName  String?
+  deletedReason  String?
   attempts       ExamAttempt[]
   emailLogs      EmailLog[]
   createdAt      DateTime      @default(now())

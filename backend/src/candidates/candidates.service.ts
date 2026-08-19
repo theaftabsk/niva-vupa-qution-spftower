@@ -29,7 +29,7 @@ export class CandidatesService {
 
   // ─── GET CANDIDATES ────────────────────────────────────────────────────────
   async getCandidates(assessmentId?: string, vendorId?: string) {
-    const whereClause: any = {};
+    const whereClause: any = { isDeleted: false };
     if (assessmentId) whereClause.assessmentId = assessmentId;
     if (vendorId) whereClause.vendorId = vendorId;
 
@@ -930,52 +930,100 @@ export class CandidatesService {
     };
   }
 
-  async deleteCandidate(id: string) {
+  async deleteCandidate(id: string, deletedBy?: { role?: string; id?: string; name?: string; reason?: string }) {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
-      include: {
-        attempts: {
-          include: {
-            screenshots: true,
-          },
-        },
-      },
+      include: { vendor: true },
     });
 
     if (!candidate) {
       throw new NotFoundException(`Candidate '${id}' not found.`);
     }
 
-    // 1. Physically delete all proctoring screenshot image files from disk
-    if (candidate.attempts && candidate.attempts.length > 0) {
-      for (const att of candidate.attempts) {
-        if (att.screenshots && att.screenshots.length > 0) {
-          for (const ss of att.screenshots) {
-            try {
-              if (ss.imageUrl) {
-                const cleanRel = ss.imageUrl.replace(/^\//, '');
-                const filePath = path.join(process.cwd(), cleanRel);
-                if (fs.existsSync(filePath)) {
-                  fs.unlinkSync(filePath);
-                  this.logger.log(`Deleted proctoring screenshot file: ${filePath}`);
-                }
-              }
-            } catch (err: any) {
-              this.logger.warn(`Could not delete screenshot file for candidate ${id}: ${err.message}`);
-            }
-          }
-        }
-      }
-    }
+    const role = deletedBy?.role || (candidate.vendorId ? 'VENDOR' : 'ADMIN');
+    const name = deletedBy?.name || (role === 'VENDOR' ? (candidate.vendor?.name || 'Vendor') : 'Administrator');
 
-    // 2. Cascade delete from database (Candidate, ExamAttempts, AttemptQuestions, Submissions, ProctoringLogs, Screenshots, EmailLogs)
-    const deleted = await this.prisma.candidate.delete({ where: { id } });
-    this.logger.log(`Candidate '${candidate.name}' (${candidate.id}) and all test data & screenshots permanently deleted.`);
+    const softDeleted = await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedByRole: role,
+        deletedById: deletedBy?.id || candidate.vendorId || null,
+        deletedByName: name,
+        deletedReason: deletedBy?.reason || 'Moved to archive',
+      },
+    });
+
+    this.logger.log(`Candidate '${candidate.name}' (${candidate.id}) safely moved to archive by ${role}: ${name}.`);
 
     return {
       success: true,
-      message: `Candidate '${candidate.name}' and all associated test data, questions, logs, and proctoring screenshots have been completely deleted.`,
-      deleted,
+      message: `Candidate '${candidate.name}' has been safely archived.`,
+      candidate: softDeleted,
+    };
+  }
+
+  async getArchivedCandidates() {
+    const list = await this.prisma.candidate.findMany({
+      where: { isDeleted: true },
+      include: {
+        assessment: { select: { id: true, name: true, slug: true } },
+        vendor: { select: { id: true, name: true, vendorCode: true, email: true } },
+        attempts: {
+          orderBy: { startedAt: 'desc' },
+          take: 1,
+          select: { id: true, status: true, score: true, totalPossibleScore: true, percentage: true },
+        },
+      },
+      orderBy: { deletedAt: 'desc' },
+    });
+
+    return {
+      success: true,
+      count: list.length,
+      candidates: list.map((c) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email,
+        phone: c.phone,
+        applicationId: c.applicationId,
+        referenceId: c.referenceId,
+        status: c.status,
+        assessment: c.assessment,
+        vendor: c.vendor,
+        deletedAt: c.deletedAt,
+        deletedByRole: c.deletedByRole,
+        deletedById: c.deletedById,
+        deletedByName: c.deletedByName,
+        deletedReason: c.deletedReason,
+        latestAttempt: c.attempts[0] || null,
+      })),
+    };
+  }
+
+  async restoreCandidate(id: string) {
+    const candidate = await this.prisma.candidate.findUnique({ where: { id } });
+    if (!candidate) throw new NotFoundException(`Candidate '${id}' not found.`);
+
+    const restored = await this.prisma.candidate.update({
+      where: { id },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+        deletedByRole: null,
+        deletedById: null,
+        deletedByName: null,
+        deletedReason: null,
+      },
+    });
+
+    this.logger.log(`Candidate '${candidate.name}' (${id}) restored from archive.`);
+
+    return {
+      success: true,
+      message: `Candidate '${candidate.name}' has been restored to active status successfully.`,
+      candidate: restored,
     };
   }
 
@@ -1406,7 +1454,10 @@ export class CandidatesService {
       where: { id: assessmentId },
       include: {
         candidates: {
-          where: resolvedVendorId ? { vendorId: resolvedVendorId } : {},
+          where: {
+            ...(resolvedVendorId ? { vendorId: resolvedVendorId } : {}),
+            isDeleted: false,
+          },
           include: {
             vendor: {
               select: { id: true, name: true, vendorCode: true },
@@ -1792,7 +1843,7 @@ export class CandidatesService {
     workbook.creator = 'GreatCampus Assessment System — Niva Bupa';
     workbook.created = new Date();
 
-    const whereClause: any = {};
+    const whereClause: any = { isDeleted: false };
     if (assessmentId) whereClause.assessmentId = assessmentId;
 
     const candidates = await this.prisma.candidate.findMany({

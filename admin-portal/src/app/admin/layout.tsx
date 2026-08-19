@@ -17,6 +17,7 @@ import {
   Building2,
   ShieldCheck,
   Briefcase,
+  Archive,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -132,6 +133,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           href: "/admin/questions",
           label: "Question Bank CMS",
           icon: BookOpen,
+        },
+        {
+          href: "/admin/archive",
+          label: "Archive & Bin",
+          icon: Archive,
         },
         {
           href: "/admin/settings",
