@@ -351,25 +351,12 @@ export default function CandidateReportModal({ isOpen, onClose, candidateId, onR
 
                   <div className="h-9 w-px bg-white/20" />
 
-                  {/* Status Badge */}
-                  <div className="text-center px-2">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black tracking-wider uppercase shadow-md ${
-                        report.result.status === "QUALIFIED"
-                          ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-emerald-600/30"
-                          : report.result.status === "LOCKED"
-                          ? "bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-amber-600/30"
-                          : "bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-rose-600/30"
-                      }`}
-                    >
-                      {report.result.status === "QUALIFIED" ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : report.result.status === "LOCKED" ? (
-                        <ShieldAlert className="w-4 h-4" />
-                      ) : (
-                        <XCircle className="w-4 h-4" />
-                      )}
-                      {report.result.status}
+                  {/* Evaluation Status */}
+                  <div className="text-center px-3">
+                    <span className="block text-[10px] font-extrabold text-blue-200 uppercase tracking-wider">Exam Status</span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white/20 text-white">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      COMPLETED
                     </span>
                   </div>
 

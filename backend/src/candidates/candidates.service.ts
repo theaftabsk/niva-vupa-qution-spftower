@@ -1671,7 +1671,7 @@ export class CandidatesService {
     if (createdCandidates.length > 0) {
       const candidateIds = createdCandidates.map((c) => c.id);
       this.logger.log(`[Auto Email Dispatch] Triggering auto email invitations for ${candidateIds.length} candidate(s)...`);
-      
+
       this.emailService
         .sendBulkInvitations({
           assessmentId,
@@ -2187,27 +2187,7 @@ export class CandidatesService {
     let scoreMarks = latestAttempt ? latestAttempt.score : 0;
     let totalMarks = latestAttempt ? (latestAttempt.totalPossibleScore || 60) : 60;
     let scorePct = latestAttempt ? latestAttempt.percentage : 0;
-    let resultStatus = 'NOT STARTED';
-
-    if (latestAttempt) {
-      if (latestAttempt.status === 'LOCKED' || candidate.status === 'LOCKED') {
-        resultStatus = 'LOCKED';
-      } else if (latestAttempt.status === 'DISQUALIFIED') {
-        resultStatus = 'DISQUALIFIED';
-      } else if (latestAttempt.isPassed || scorePct >= (latestAttempt.passingPercentageSnapshot || 50)) {
-        resultStatus = 'QUALIFIED (PASS)';
-      } else if (latestAttempt.status === 'COMPLETED') {
-        resultStatus = 'NOT QUALIFIED (FAIL)';
-      } else {
-        const elapsedSec = latestAttempt.startedAt ? Math.floor((Date.now() - new Date(latestAttempt.startedAt).getTime()) / 1000) : 0;
-        const maxAllowedSec = (candidate.assessment?.durationMins || 45) * 60;
-        if (elapsedSec > maxAllowedSec) {
-          resultStatus = 'INCOMPLETE (TIME EXPIRED)';
-        } else {
-          resultStatus = 'IN PROGRESS';
-        }
-      }
-    }
+    let examStatus = latestAttempt ? (latestAttempt.status === 'LOCKED' || candidate.status === 'LOCKED' ? 'LOCKED' : latestAttempt.status) : 'NOT STARTED';
 
     let durationSec = latestAttempt?.totalTimeSpentSec || 0;
     if (!durationSec && latestAttempt?.startedAt) {
@@ -2220,15 +2200,15 @@ export class CandidatesService {
     }
     const durationFormatted = `${Math.floor(durationSec / 60)} mins ${durationSec % 60} secs`;
 
-    const summaryHeader = sheet1.addRow(['Evaluation Metric', 'Assessment Result', 'Benchmark Status']);
+    const summaryHeader = sheet1.addRow(['Evaluation Metric', 'Assessment Result', 'Details / Parameters']);
     summaryHeader.font = headerFont;
     summaryHeader.eachCell((c) => { c.fill = cyanFill; c.alignment = { vertical: 'middle', horizontal: 'center' }; });
 
-    sheet1.addRow(['Final Assessment Outcome', resultStatus, resultStatus.includes('QUALIFIED') ? 'Eligible for Next Round' : 'Needs Further Review']);
-    sheet1.addRow(['Total Score Obtained', `${scoreMarks} / ${totalMarks} Marks`, `Target: ${Math.round(totalMarks * 0.5)} Marks`]);
-    sheet1.addRow(['Overall Percentage', `${scorePct}%`, 'Passing Threshold: 50%']);
-    sheet1.addRow(['Time Spent in Exam', durationFormatted, `Allowed: ${candidate.assessment?.durationMins || 45} Mins`]);
-    sheet1.addRow(['Proctoring Violations Count', `${latestAttempt?.warningCount || 0} Warnings`, latestAttempt?.warningCount > 0 ? 'Flagged Incidents' : 'Clean Session']);
+    sheet1.addRow(['Exam Status', examStatus, examStatus === 'COMPLETED' ? 'Assessment Evaluated' : 'In Progress / Pending']);
+    sheet1.addRow(['Total Score Obtained', `${scoreMarks} / ${totalMarks} Marks`, `60 Questions Evaluated`]);
+    sheet1.addRow(['Overall Percentage', `${scorePct}%`, 'Final Test Percentage']);
+    sheet1.addRow(['Time Spent in Exam', durationFormatted, `Allowed Duration: ${candidate.assessment?.durationMins || 45} Mins`]);
+    sheet1.addRow(['Proctoring Violations Count', `${latestAttempt?.warningCount || 0} Warnings`, latestAttempt?.warningCount > 0 ? 'Recorded Incidents' : 'Clean Session']);
     sheet1.addRow(['Session Integrity Score', `${Math.max(0, 100 - (latestAttempt?.warningCount || 0) * 15)}%`, 'Proctor Confidence']);
 
     // ──────────────────────────────────────────────────────────────────────────

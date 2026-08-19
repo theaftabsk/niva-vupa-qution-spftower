@@ -178,16 +178,11 @@ export default function CandidateDetailPage() {
 
             <div className="h-10 w-px bg-white/20" />
 
-            <div className="text-center px-2">
-              <span className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-black tracking-wider uppercase shadow-md ${
-                report.result.status === "QUALIFIED"
-                  ? "bg-emerald-500 text-white"
-                  : report.result.status === "LOCKED"
-                  ? "bg-amber-500 text-white"
-                  : "bg-rose-500 text-white"
-              }`}>
-                {report.result.status === "QUALIFIED" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                {report.result.status}
+            <div className="text-center px-3">
+              <span className="block text-[10px] font-black text-blue-200 uppercase">Exam Status</span>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black bg-white/20 text-white">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                COMPLETED
               </span>
             </div>
           </div>

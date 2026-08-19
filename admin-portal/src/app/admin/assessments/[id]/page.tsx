@@ -84,7 +84,7 @@ export default function AssessmentDashboardPage() {
           const u = JSON.parse(userStr);
           activeRole = u.role || "ADMIN";
           activeVendorId = u.vendorId || u.id || u.vendorCode || u.email || null;
-        } catch {}
+        } catch { }
       }
 
       const params = new URLSearchParams();
@@ -137,7 +137,7 @@ export default function AssessmentDashboardPage() {
         try {
           const u = JSON.parse(userStr);
           if (u.role === "VENDOR" && u.vendorId) activeVendorId = u.vendorId;
-        } catch {}
+        } catch { }
       }
 
       const res = await fetch(`${baseUrl}/api/v1/candidates/upload-excel`, {
@@ -283,7 +283,7 @@ export default function AssessmentDashboardPage() {
         try {
           const u = JSON.parse(userStr);
           if (u.role === "VENDOR" && u.vendorId) activeVendorId = u.vendorId;
-        } catch {}
+        } catch { }
       }
 
       const res = await fetch(`${baseUrl}/api/v1/candidates/upload-excel`, {
@@ -477,8 +477,6 @@ export default function AssessmentDashboardPage() {
     if (statusFilter === "LOCKED") return matchesSearch && c.status === "LOCKED";
     if (statusFilter === "INVITED") return matchesSearch && (c.emailStatus === "SENT" || c.emailStatus === "DELIVERED");
     if (statusFilter === "NOT_STARTED") return matchesSearch && !c.attempt;
-    if (statusFilter === "QUALIFIED") return matchesSearch && c.attempt?.isPassed;
-    if (statusFilter === "NOT_QUALIFIED") return matchesSearch && c.attempt?.status === "COMPLETED" && !c.attempt?.isPassed;
     return matchesSearch;
   });
 
@@ -488,54 +486,50 @@ export default function AssessmentDashboardPage() {
       {/* Top Breadcrumb Navigation */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
         <Link href="/admin/assessments" style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: 700, color: "#64748B", textDecoration: "none" }}>
-          <ArrowLeft size={16} /> All Assessments
+          <ArrowLeft size={14} /> Back to All Assessments
         </Link>
         <span style={{ color: "#CBD5E1" }}>/</span>
-        <span style={{ fontSize: "13px", fontWeight: 800, color: "#003F72" }}>{assessment.name}</span>
+        <span style={{ fontSize: "13px", fontWeight: 700, color: "#003F72" }}>{assessment.name}</span>
       </div>
 
       {/* Assessment Header Card */}
-      <div style={{ background: "white", borderRadius: "18px", border: "1px solid #E2E8F0", padding: "24px 28px", marginBottom: "24px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", flexWrap: "wrap" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-              <span style={{ padding: "4px 10px", borderRadius: "8px", background: assessment.status === "ACTIVE" ? "#DCFCE7" : "#F1F5F9", color: assessment.status === "ACTIVE" ? "#166534" : "#475569", fontSize: "11px", fontWeight: 800 }}>
-                {assessment.status}
-              </span>
-              <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "5px" }}>
-                <Clock size={13} style={{ color: "#64748B" }} /> {assessment.durationMins} Mins • 60 Questions • Passing: {assessment.passingPercentage}%
-              </span>
-            </div>
-            <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "0 0 6px" }}>{assessment.name}</h1>
-            <p style={{ fontSize: "13px", color: "#64748B", margin: 0 }}>{assessment.description || "Niva Bupa Health Insurance Assessment"}</p>
-          </div>
-
-          {/* Assessment Link Pill */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#F1F5F9", padding: "8px 14px", borderRadius: "12px", border: "1px solid #CBD5E1" }}>
-            <span style={{ fontSize: "12px", fontFamily: "monospace", fontWeight: 700, color: "#1E293B", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {assessment.candidateLink}
+      <div style={{ background: "white", padding: "24px 28px", borderRadius: "16px", border: "1px solid #E2E8F0", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+            <span style={{ padding: "4px 10px", borderRadius: "8px", background: assessment.status === "ACTIVE" ? "#DCFCE7" : "#F1F5F9", color: assessment.status === "ACTIVE" ? "#166534" : "#475569", fontSize: "11px", fontWeight: 800 }}>
+              {assessment.status}
             </span>
-            <button
-              onClick={handleCopyLink}
-              style={{ background: copiedLink ? "#10B981" : "#00AEEF", color: "white", border: "none", borderRadius: "8px", padding: "6px 12px", fontSize: "11px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
-            >
-              {copiedLink ? <Check size={13} /> : <Copy size={13} />}
-              {copiedLink ? "Copied" : "Copy"}
-            </button>
+            <span style={{ fontSize: "12px", color: "#64748B", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "5px" }}>
+              <Clock size={13} style={{ color: "#64748B" }} /> {assessment.durationMins} Mins • 60 Questions
+            </span>
           </div>
+          <h1 style={{ fontSize: "22px", fontWeight: 900, color: "#0F172A", margin: "0 0 6px" }}>{assessment.name}</h1>
+          <p style={{ fontSize: "13px", color: "#64748B", margin: 0 }}>{assessment.description || "Niva Bupa Health Insurance Assessment"}</p>
+        </div>
+
+        {/* Assessment Link Pill */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#F1F5F9", padding: "8px 14px", borderRadius: "12px", border: "1px solid #CBD5E1" }}>
+          <span style={{ fontSize: "12px", fontFamily: "monospace", fontWeight: 700, color: "#1E293B", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {assessment.candidateLink}
+          </span>
+          <button
+            onClick={handleCopyLink}
+            style={{ background: copiedLink ? "#10B981" : "#00AEEF", color: "white", border: "none", borderRadius: "8px", padding: "6px 12px", fontSize: "11px", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+          >
+            {copiedLink ? <Check size={13} /> : <Copy size={13} />}
+            {copiedLink ? "Copied" : "Copy"}
+          </button>
         </div>
       </div>
 
       {/* KPI Stats Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "14px", marginBottom: "24px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: "14px", marginBottom: "24px" }}>
         {[
           { label: "Assigned Candidates", val: stats.totalCandidates, color: "#003F72", bg: "#EFF6FF", icon: Users },
           { label: "Invited (Emails)", val: stats.invitedCount, color: "#0284C7", bg: "#F0F9FF", icon: Mail },
           { label: "Not Started", val: stats.notStartedCount, color: "#64748B", bg: "#F8FAFC", icon: Clock },
           { label: "In Progress", val: stats.inProgressCount, color: "#D97706", bg: "#FFFBEB", icon: RefreshCw },
           { label: "Completed Exams", val: stats.completedCount, color: "#059669", bg: "#ECFDF5", icon: CheckCircle2 },
-          { label: "Qualified (Pass)", val: stats.qualifiedCount, color: "#16A34A", bg: "#F0FDF4", icon: Award },
-          { label: "Not Qualified", val: stats.notQualifiedCount, color: "#DC2626", bg: "#FEF2F2", icon: XCircle },
           { label: "Locked Sessions", val: stats.lockedCount, color: "#991B1B", bg: "#FEF2F2", icon: ShieldAlert },
         ].map((kpi, idx) => {
           const Icon = kpi.icon;
@@ -578,8 +572,6 @@ export default function AssessmentDashboardPage() {
             <option value="COMPLETED">Completed ({stats.completedCount})</option>
             <option value="IN_PROGRESS">In Progress ({stats.inProgressCount})</option>
             <option value="LOCKED">Locked ({stats.lockedCount})</option>
-            <option value="QUALIFIED">Qualified ({stats.qualifiedCount})</option>
-            <option value="NOT_QUALIFIED">Not Qualified ({stats.notQualifiedCount})</option>
             <option value="INVITED">Invited ({stats.invitedCount})</option>
             <option value="NOT_STARTED">Not Started ({stats.notStartedCount})</option>
           </select>
@@ -596,7 +588,7 @@ export default function AssessmentDashboardPage() {
 
           <button
             onClick={() => setShowAddModal(true)}
-            style={{ padding: "9px 14px", borderRadius: "10px", background: "#F1F5F9", color: "#334155", fontSize: "12px", fontWeight: 700, border: "1px solid #CBD5E1", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}
+            style={{ padding: "9px 16px", borderRadius: "10px", background: "#00AEEF", color: "white", fontSize: "12px", fontWeight: 800, border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}
           >
             <Plus size={14} /> Add Candidate
           </button>
@@ -628,14 +620,13 @@ export default function AssessmentDashboardPage() {
       {/* Candidates Table */}
       <div style={{ background: "white", borderRadius: "16px", border: "1px solid #CBD5E1", overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
         <div style={{ width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", minWidth: "1150px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+          <table style={{ width: "100%", minWidth: "1050px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#F1F5F9", borderBottom: "2px solid #CBD5E1" }}>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Candidate</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>App / Ref ID</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Status</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Score (60)</th>
-                <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Result</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Warnings</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Email Invite</th>
                 <th style={{ padding: "12px 16px", fontWeight: 800, color: "#334155", fontSize: "11px", textTransform: "uppercase", textAlign: "right", whiteSpace: "nowrap" }}>Actions</th>
@@ -644,7 +635,7 @@ export default function AssessmentDashboardPage() {
             <tbody>
               {filteredCandidates.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: "48px 20px", textAlign: "center", color: "#64748B" }}>
+                  <td colSpan={7} style={{ padding: "48px 20px", textAlign: "center", color: "#64748B" }}>
                     <Users size={36} color="#CBD5E1" style={{ margin: "0 auto 10px" }} />
                     <div style={{ fontWeight: 800, color: "#0F172A", fontSize: "15px" }}>No Candidates Found</div>
                     <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "4px" }}>Click "Upload Excel Candidates" or "Add Candidate" above to assign candidates.</p>
@@ -654,140 +645,122 @@ export default function AssessmentDashboardPage() {
                 filteredCandidates
                   .slice((currentPage - 1) * pageSize, Math.min(filteredCandidates.length, currentPage * pageSize))
                   .map((c: any) => {
-                  const att = c.attempt;
-                  const isLocked = c.status === "LOCKED" || att?.status === "LOCKED";
-                  const isCompleted = c.status === "COMPLETED" || att?.status === "COMPLETED";
-                  const isInProgress = !isLocked && !isCompleted && (c.status === "IN_PROGRESS" || att?.status === "IN_PROGRESS");
-                  const effectiveStatus = isLocked ? "LOCKED" : isCompleted ? "COMPLETED" : isInProgress ? "IN_PROGRESS" : "REGISTERED";
-                  const isPassed = att?.isPassed;
+                    const att = c.attempt;
+                    const isLocked = c.status === "LOCKED" || att?.status === "LOCKED";
+                    const isCompleted = c.status === "COMPLETED" || att?.status === "COMPLETED";
+                    const isInProgress = !isLocked && !isCompleted && (c.status === "IN_PROGRESS" || att?.status === "IN_PROGRESS");
+                    const effectiveStatus = isLocked ? "LOCKED" : isCompleted ? "COMPLETED" : isInProgress ? "IN_PROGRESS" : "REGISTERED";
 
-                  return (
-                    <tr key={c.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
-                      <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
-                        <div style={{ fontWeight: 800, color: "#0F172A" }}>{c.name}</div>
-                        <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>{c.email} • {c.phone}</div>
-                      </td>
+                    return (
+                      <tr key={c.id} style={{ borderBottom: "1px solid #E2E8F0" }}>
+                        <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
+                          <div style={{ fontWeight: 800, color: "#0F172A" }}>{c.name}</div>
+                          <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>{c.email} • {c.phone}</div>
+                        </td>
 
-                      <td style={{ padding: "14px 16px", fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "#334155", whiteSpace: "nowrap" }}>
-                        {c.applicationId || c.referenceId}
-                      </td>
+                        <td style={{ padding: "14px 16px", fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "#334155", whiteSpace: "nowrap" }}>
+                          {c.applicationId || c.referenceId}
+                        </td>
 
-                      <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
-                        <span style={{
-                          padding: "4px 8px",
-                          borderRadius: "6px",
-                          fontSize: "11px",
-                          fontWeight: 800,
-                          background: effectiveStatus === "COMPLETED" ? "#DCFCE7" : effectiveStatus === "LOCKED" ? "#FEE2E2" : effectiveStatus === "IN_PROGRESS" ? "#FEF3C7" : "#F1F5F9",
-                          color: effectiveStatus === "COMPLETED" ? "#166534" : effectiveStatus === "LOCKED" ? "#991B1B" : effectiveStatus === "IN_PROGRESS" ? "#92400E" : "#475569",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}>
-                          {effectiveStatus === "LOCKED" ? <><Lock size={11} /> LOCKED</> : effectiveStatus}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "14px 16px", fontWeight: 800, color: att ? "#0F172A" : "#94A3B8", whiteSpace: "nowrap" }}>
-                        {att ? `${att.score} / ${att.totalPossibleScore || 60}` : "—"}
-                        {att && <span style={{ fontSize: "11px", color: "#64748B", marginLeft: "4px" }}>({att.percentage}%)</span>}
-                      </td>
-
-                      <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
-                        {att ? (
+                        <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
                           <span style={{
                             padding: "4px 8px",
                             borderRadius: "6px",
                             fontSize: "11px",
                             fontWeight: 800,
-                            background: isPassed ? "#ECFDF5" : "#FEF2F2",
-                            color: isPassed ? "#059669" : "#DC2626"
+                            background: effectiveStatus === "COMPLETED" ? "#DCFCE7" : effectiveStatus === "LOCKED" ? "#FEE2E2" : effectiveStatus === "IN_PROGRESS" ? "#FEF3C7" : "#F1F5F9",
+                            color: effectiveStatus === "COMPLETED" ? "#166534" : effectiveStatus === "LOCKED" ? "#991B1B" : effectiveStatus === "IN_PROGRESS" ? "#92400E" : "#475569",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
                           }}>
-                            {isPassed ? "QUALIFIED" : "NOT QUALIFIED"}
+                            {effectiveStatus === "LOCKED" ? <><Lock size={11} /> LOCKED</> : effectiveStatus}
                           </span>
-                        ) : (
-                          <span style={{ color: "#94A3B8", fontSize: "12px" }}>—</span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
-                        {att ? (
-                          <span style={{ fontWeight: 700, color: att.warningCount > 0 ? "#DC2626" : "#64748B", fontSize: "12px" }}>
-                            {att.warningCount} / {att.maxProctorWarnings || assessment.maxProctorWarnings || 3}
+                        <td style={{ padding: "14px 16px", fontWeight: 800, color: att ? "#0F172A" : "#94A3B8", whiteSpace: "nowrap" }}>
+                          {att ? `${att.score} / ${att.totalPossibleScore || 60}` : "—"}
+                          {att && <span style={{ fontSize: "11px", color: "#64748B", marginLeft: "4px" }}>({att.percentage}%)</span>}
+                        </td>
+
+                        <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
+                          {att ? (
+                            <span style={{ fontWeight: 700, color: att.warningCount > 0 ? "#DC2626" : "#64748B", fontSize: "12px" }}>
+                              {att.warningCount} / {att.maxProctorWarnings || assessment.maxProctorWarnings || 3}
+                            </span>
+                          ) : `0 / ${assessment.maxProctorWarnings || 3}`}
+                        </td>
+
+                        <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
+                          <span style={{
+                            padding: "3px 8px",
+                            borderRadius: "6px",
+                            fontSize: "10px",
+                            fontWeight: 800,
+                            background: c.emailStatus === "SENT" ? "#E0F2FE" : c.emailStatus === "FAILED" ? "#FEE2E2" : "#F1F5F9",
+                            color: c.emailStatus === "SENT" ? "#0369A1" : c.emailStatus === "FAILED" ? "#B91C1C" : "#64748B"
+                          }}>
+                            {c.emailStatus || "PENDING"}
                           </span>
-                        ) : `0 / ${assessment.maxProctorWarnings || 3}`}
-                      </td>
+                        </td>
 
-                      <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
-                        <span style={{
-                          padding: "3px 8px",
-                          borderRadius: "6px",
-                          fontSize: "10px",
-                          fontWeight: 800,
-                          background: c.emailStatus === "SENT" ? "#E0F2FE" : c.emailStatus === "FAILED" ? "#FEE2E2" : "#F1F5F9",
-                          color: c.emailStatus === "SENT" ? "#0369A1" : c.emailStatus === "FAILED" ? "#B91C1C" : "#64748B"
-                        }}>
-                          {c.emailStatus || "PENDING"}
-                        </span>
-                      </td>
-
-                      <td style={{ padding: "14px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
-                        <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
-                          <button
-                            onClick={() => handleDownloadSingleExcel(c.id)}
-                            title="Download Individual Candidate Excel Scorecard (4 Sheets)"
-                            style={{ padding: "6px 10px", borderRadius: "8px", background: "#ECFDF5", color: "#059669", border: "1px solid #A7F3D0", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
-                          >
-                            <FileSpreadsheet size={12} /> Excel
-                          </button>
-
-                          <button
-                            onClick={() => { setSelectedCandidateId(c.id); setIsReportModalOpen(true); }}
-                            title="View Full Report & Proctoring Screenshots"
-                            style={{ padding: "6px 10px", borderRadius: "8px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
-                          >
-                            <FileText size={12} /> Report
-                          </button>
-
-                          {isLocked && (
+                        <td style={{ padding: "14px 16px", textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", alignItems: "center" }}>
                             <button
-                              onClick={() => handleUnlockCandidate(c.id, c.name)}
-                              title="Unlock Candidate"
+                              onClick={() => handleDownloadSingleExcel(c.id)}
+                              title="Download Individual Candidate Excel Scorecard (4 Sheets)"
                               style={{ padding: "6px 10px", borderRadius: "8px", background: "#ECFDF5", color: "#059669", border: "1px solid #A7F3D0", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
                             >
-                              <Lock size={12} /> Unlock
+                              <FileSpreadsheet size={12} /> Excel
                             </button>
-                          )}
 
-                          {/* Reset & Re-invite Button */}
-                          <button
-                            onClick={() => setResetCandidateTarget({ id: c.id, name: c.name, email: c.email })}
-                            title="Reset Candidate Attempt & Resend Invitation (Clean & Send)"
-                            style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF3C7", color: "#92400E", border: "1px solid #FDE68A", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
-                          >
-                            <RotateCcw size={12} /> Reset & Send
-                          </button>
+                            <button
+                              onClick={() => { setSelectedCandidateId(c.id); setIsReportModalOpen(true); }}
+                              title="View Full Report & Proctoring Screenshots"
+                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                            >
+                              <FileText size={12} /> Report
+                            </button>
 
-                          <button
-                            onClick={() => handleSendInvite(c.id, c.email)}
-                            title="Send / Resend Email Invitation"
-                            style={{ padding: "6px 8px", borderRadius: "8px", background: "#F8FAFC", color: "#475569", border: "1px solid #CBD5E1", cursor: "pointer" }}
-                          >
-                            <Mail size={12} />
-                          </button>
+                            {isLocked && (
+                              <button
+                                onClick={() => handleUnlockCandidate(c.id, c.name)}
+                                title="Unlock Candidate"
+                                style={{ padding: "6px 10px", borderRadius: "8px", background: "#ECFDF5", color: "#059669", border: "1px solid #A7F3D0", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                              >
+                                <Lock size={12} /> Unlock
+                              </button>
+                            )}
 
-                          <button
-                            onClick={() => setDeleteCandidateTarget({ id: c.id, name: c.name })}
-                            title="Delete Candidate & Wipe All Test Data & Screenshots"
-                            style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
-                          >
-                            <Trash2 size={12} /> Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                            {/* Reset & Re-invite Button */}
+                            <button
+                              onClick={() => setResetCandidateTarget({ id: c.id, name: c.name, email: c.email })}
+                              title="Reset Candidate Attempt & Resend Invitation (Clean & Send)"
+                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF3C7", color: "#92400E", border: "1px solid #FDE68A", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                            >
+                              <RotateCcw size={12} /> Reset & Send
+                            </button>
+
+                            <button
+                              onClick={() => handleSendInvite(c.id, c.email)}
+                              title="Send / Resend Email Invitation"
+                              style={{ padding: "6px 8px", borderRadius: "8px", background: "#F8FAFC", color: "#475569", border: "1px solid #CBD5E1", cursor: "pointer" }}
+                            >
+                              <Mail size={12} />
+                            </button>
+
+                            <button
+                              onClick={() => setDeleteCandidateTarget({ id: c.id, name: c.name })}
+                              title="Delete Candidate & Wipe All Test Data & Screenshots"
+                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF2F2", color: "#DC2626", border: "1px solid #FCA5A5", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                            >
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
               )}
             </tbody>
           </table>

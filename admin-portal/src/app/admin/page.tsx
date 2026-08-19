@@ -145,12 +145,12 @@ export default function AdminOverviewDashboard() {
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Qualified Candidates</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{passedCount}</p>
-            <span className="text-[11px] font-bold text-slate-500 mt-0.5 inline-block">Score ≥ 50% Threshold</span>
+            <p className="text-[11px] font-extrabold uppercase text-slate-400 tracking-wider">Completed Exams</p>
+            <p className="text-2xl font-black text-emerald-600 mt-1">{completedCand.length}</p>
+            <span className="text-[11px] font-bold text-slate-500 mt-0.5 inline-block">Evaluated Sessions</span>
           </div>
           <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
-            <Award className="w-5 h-5" />
+            <CheckCircle2 className="w-5 h-5" />
           </div>
         </div>
 
