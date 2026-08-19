@@ -49,19 +49,23 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen w-full flex flex-col justify-between font-sans bg-gradient-to-br from-slate-50 via-white to-blue-50/40 text-slate-900 selection:bg-blue-600 selection:text-white p-6 sm:p-10">
       
-      {/* Top Header Logo */}
+      {/* Top Header Logo & CCE Programme Team */}
       <div className="w-full max-w-6xl mx-auto flex items-center justify-between">
-        <div className="p-2.5 rounded-2xl bg-white shadow-xs border border-slate-200/80">
+        <div className="flex items-center gap-3 p-2 sm:p-2.5 pr-4 rounded-2xl bg-white shadow-xs border border-slate-200/80">
           <Image
             src="/niva-bupa-logo.png"
             alt="Niva Bupa Health Insurance"
-            width={150}
-            height={42}
+            width={140}
+            height={38}
             className="h-8 sm:h-9 w-auto object-contain"
             priority
           />
+          <div className="h-6 w-px bg-slate-200" />
+          <span className="text-xs sm:text-sm font-extrabold text-[#003F72] tracking-tight">
+            CCE Programme Team
+          </span>
         </div>
-        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-white px-3.5 py-1.5 rounded-full border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-white px-3.5 py-2 rounded-full border border-slate-200 shadow-2xs">
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Secure Portal</span>
         </div>
