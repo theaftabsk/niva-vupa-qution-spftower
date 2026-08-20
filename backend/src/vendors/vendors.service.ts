@@ -318,7 +318,7 @@ export class VendorsService {
   }
 
   async getVendorDashboardDetails(id: string) {
-    const vendor = await this.prisma.vendor.findUnique({
+    const vendor: any = await (this.prisma as any).vendor.findUnique({
       where: { id },
       include: {
         assignedAssessments: {
@@ -346,7 +346,7 @@ export class VendorsService {
 
     if (!vendor) throw new NotFoundException('Vendor not found');
 
-    const totalCandidates = vendor.candidates.length;
+    const totalCandidates = vendor.candidates?.length || 0;
     let notStarted = 0;
     let inProgress = 0;
     let completed = 0;
@@ -358,8 +358,8 @@ export class VendorsService {
       'https://niva.greatcampus.in'
     ).replace(/\/+$/, '');
 
-    const candidatesList = vendor.candidates.map((c) => {
-      const latestAttempt = c.attempts[0] || null;
+    const candidatesList = (vendor.candidates || []).map((c: any) => {
+      const latestAttempt = c.attempts?.[0] || null;
       let status = 'NOT_STARTED';
 
       if (latestAttempt) {
@@ -431,20 +431,20 @@ export class VendorsService {
         inProgress,
         completed,
         disqualified,
-        totalAssessments: vendor.assignedAssessments.length,
-        totalApiCalls: vendor.apiLogs.length,
+        totalAssessments: vendor.assignedAssessments?.length || 0,
+        totalApiCalls: vendor.apiLogs?.length || 0,
       },
-      assignedAssessments: vendor.assignedAssessments.map((va) => ({
+      assignedAssessments: (vendor.assignedAssessments || []).map((va: any) => ({
         id: va.assessment.id,
         name: va.assessment.name,
         slug: va.assessment.slug,
         status: va.assessment.status,
         durationMins: va.assessment.durationMins,
         assignedAt: va.assignedAt,
-        candidatesCount: vendor.candidates.filter((c) => c.assessmentId === va.assessmentId).length,
+        candidatesCount: (vendor.candidates || []).filter((c: any) => c.assessmentId === va.assessmentId).length,
       })),
       candidates: candidatesList,
-      apiLogs: vendor.apiLogs,
+      apiLogs: vendor.apiLogs || [],
     };
   }
 
@@ -459,8 +459,8 @@ export class VendorsService {
     const skip = (page - 1) * limit;
 
     const [total, logs] = await Promise.all([
-      this.prisma.vendorApiLog.count({ where }),
-      this.prisma.vendorApiLog.findMany({
+      (this.prisma as any).vendorApiLog.count({ where }),
+      (this.prisma as any).vendorApiLog.findMany({
         where,
         include: {
           vendor: {
@@ -509,7 +509,7 @@ export class VendorsService {
         orderBy: { startedAt: 'desc' },
         take: limit,
       }),
-      this.prisma.vendorApiLog.findMany({
+      (this.prisma as any).vendorApiLog.findMany({
         where: vendorWhere,
         include: {
           vendor: { select: { id: true, name: true, vendorCode: true } },

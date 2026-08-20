@@ -35,7 +35,7 @@ export class VendorApiService {
     errorMessage?: string;
   }) {
     try {
-      await this.prisma.vendorApiLog.create({
+      await (this.prisma as any).vendorApiLog.create({
         data: {
           vendorId: data.vendorId,
           apiType: data.apiType,
