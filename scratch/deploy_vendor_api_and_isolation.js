@@ -13,8 +13,9 @@ conn.on('ready', () => {
 
   const cmd = [
     "cd /var/www/qution-softower || cd /var/www/niva-vupa-qution-spftower",
+    "git reset --hard HEAD",
     "git pull origin main",
-    "cd backend && npx prisma db push --accept-data-loss && npx prisma generate && npm run build",
+    "cd backend && npm install --no-audit && npx prisma db push --accept-data-loss && npx prisma generate && npm run build",
     "cd ../admin-portal && npm run build",
     "pm2 restart all",
     "pm2 status"

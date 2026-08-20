@@ -6,6 +6,7 @@ import { join } from 'path';
 import * as fs from 'fs';
 import helmet from 'helmet';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { VendorApiModule } from './integration/vendor-api/vendor-api.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -86,7 +87,9 @@ async function bootstrap() {
     .addTag('Vendor Integration APIs', 'Endpoints for Vendor / Agency candidate registration, exam link generation, and status tracking')
     .build();
 
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, {
+    include: [VendorApiModule],
+  });
   SwaggerModule.setup('api/docs', app, swaggerDocument, {
     customSiteTitle: 'Vendor API Docs | Niva Bupa Assessment',
     customCss: '.swagger-ui .topbar { background-color: #003F72; }',
