@@ -8,6 +8,11 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../email/email.service';
 import * as crypto from 'crypto';
 
+// ─── SYSTEM FIXED CONSTANTS ───────────────────────────────────────────────────
+const FIXED_EXAM_DURATION_MINS = 45;
+const FIXED_TOTAL_QUESTIONS = 60;
+// ──────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class VendorApiService {
   private readonly logger = new Logger(VendorApiService.name);
@@ -78,7 +83,8 @@ export class VendorApiService {
     }
 
     const name = body.name.trim();
-    const durationMins = Number(body.durationMins) || 45;
+    // STRICT FIXED CONSTANTS: Always 45 Mins
+    const durationMins = FIXED_EXAM_DURATION_MINS;
     const maxProctorWarnings = Number(body.maxProctorWarnings) || 3;
     const status = body.status ? body.status.toUpperCase() : 'ACTIVE';
 
@@ -413,8 +419,8 @@ export class VendorApiService {
       assessmentName: a.name,
       assessmentSlug: a.slug,
       assessmentLink: `${frontendBaseUrl}/${a.slug}`,
-      durationMins: a.durationMins || 45,
-      totalQuestions: 60,
+      durationMins: FIXED_EXAM_DURATION_MINS,
+      totalQuestions: FIXED_TOTAL_QUESTIONS,
       status: 'ACTIVE',
       activeFrom: a.activeFrom,
       activeUntil: a.activeUntil,
