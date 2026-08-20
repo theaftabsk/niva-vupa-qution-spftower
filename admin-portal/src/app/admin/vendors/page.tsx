@@ -24,6 +24,9 @@ import {
   Activity,
   Layers,
   Eye,
+  Lock,
+  ExternalLink,
+  Terminal,
 } from "lucide-react";
 
 interface AssessmentItem {
@@ -57,6 +60,8 @@ export default function VendorsManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
   const [copiedApiKey, setCopiedApiKey] = useState<string | null>(null);
+  const [copiedDocLink, setCopiedDocLink] = useState(false);
+  const [copiedDocPass, setCopiedDocPass] = useState(false);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -422,6 +427,66 @@ export default function VendorsManagementPage() {
           <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl">
             <Layers size={24} />
           </div>
+        </div>
+      </div>
+
+      {/* 🔒 Protected Vendor API Documentation & Swagger Access Banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 rounded-2xl p-5 text-white shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="space-y-1.5 max-w-2xl">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30">
+              <Lock size={16} />
+            </div>
+            <h3 className="text-sm font-black text-white flex items-center gap-2">
+              Protected Vendor API Documentation (Swagger OAS 3.0)
+            </h3>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Secured & Locked
+            </span>
+          </div>
+          <p className="text-xs text-slate-300 font-medium leading-relaxed">
+            Locked documentation link for external vendors and agency developers. Unauthorized public visits are blocked. Share only with authorized partners.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-[11px]">
+            <span className="text-slate-400">Portal User:</span>
+            <code className="px-2 py-0.5 bg-slate-800 text-sky-300 rounded border border-slate-700 font-bold">niva-admin</code>
+            <span className="text-slate-400 ml-1">Password:</span>
+            <code className="px-2 py-0.5 bg-slate-800 text-amber-300 rounded border border-slate-700 font-bold">Niva@Doc2026!</code>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText("Niva@Doc2026!");
+                setCopiedDocPass(true);
+                setTimeout(() => setCopiedDocPass(false), 2000);
+              }}
+              className="text-[10px] text-blue-400 hover:text-white underline cursor-pointer ml-1"
+            >
+              {copiedDocPass ? "✓ Password Copied" : "Copy Password"}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText("https://api.niva.greatcampus.in/api/docs");
+              setCopiedDocLink(true);
+              setTimeout(() => setCopiedDocLink(false), 2000);
+            }}
+            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-xl text-xs font-bold transition-all border border-slate-700 flex items-center gap-1.5 cursor-pointer"
+          >
+            {copiedDocLink ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            <span>{copiedDocLink ? "Link Copied!" : "Copy Doc URL"}</span>
+          </button>
+
+          <a
+            href="https://api.niva.greatcampus.in/api/docs?key=Niva@Doc2026!"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer no-underline"
+          >
+            <ExternalLink size={14} />
+            <span>Open API Docs</span>
+          </a>
         </div>
       </div>
 

@@ -55,6 +55,61 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // ─── SWAGGER SECURITY LOCK (Basic Auth & Token Protection) ─────────────────────
+  const swaggerRoutes = ['/api/docs', '/api/docs-json', '/docs', '/docs-json'];
+  app.use(swaggerRoutes, (req: any, res: any, next: any) => {
+    // 1. Allow query param key: e.g. ?key=Niva@Doc2026!
+    const queryKey = req.query?.key || req.query?.token || req.query?.apiKey;
+    const masterDocPassword = process.env.SWAGGER_PASSWORD || 'Niva@Doc2026!';
+    const masterDocUser = process.env.SWAGGER_USER || 'niva-admin';
+
+    if (queryKey === masterDocPassword) {
+      return next();
+    }
+
+    // 2. Check HTTP Basic Authentication Header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Basic ')) {
+      try {
+        const credentials = Buffer.from(authHeader.split(' ')[1], 'base64').toString('utf-8');
+        const [username, password] = credentials.split(':');
+
+        if (
+          (username === masterDocUser && password === masterDocPassword) ||
+          password === masterDocPassword ||
+          (username === 'admin' && password === masterDocPassword)
+        ) {
+          return next();
+        }
+      } catch (e) {}
+    }
+
+    // 3. Unauthorized - Prompt browser login dialog
+    res.setHeader('WWW-Authenticate', 'Basic realm="Niva Bupa Vendor API Documentation — Protected"');
+    return res.status(401).send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>401 Unauthorized - Vendor API Documentation</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0F172A; color: #F8FAFC; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+          .card { background: #1E293B; border: 1px solid #334155; padding: 32px; border-radius: 16px; max-width: 440px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+          h2 { color: #38BDF8; margin-top: 0; }
+          p { color: #94A3B8; font-size: 14px; line-height: 1.5; }
+          .badge { display: inline-block; background: #0284C7; color: #fff; font-weight: bold; padding: 4px 12px; border-radius: 8px; font-size: 12px; margin-top: 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>🔒 Protected API Documentation</h2>
+          <p>Access to the <strong>Niva Bupa Vendor Integration APIs</strong> is restricted. Please provide valid authorization credentials to proceed.</p>
+          <div class="badge">Niva Bupa Enterprise Security</div>
+        </div>
+      </body>
+      </html>
+    `);
+  });
+
   // ─── SWAGGER API DOCUMENTATION SETUP ──────────────────────────────────────────
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Niva Bupa Examination & Assessment — Vendor Integration APIs')
