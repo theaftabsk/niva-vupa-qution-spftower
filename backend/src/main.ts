@@ -85,7 +85,8 @@ async function bootstrap() {
     }
 
     // 3. Unauthorized - Prompt browser login dialog
-    res.setHeader('WWW-Authenticate', 'Basic realm="Niva Bupa Vendor API Documentation — Protected"');
+    res.setHeader('WWW-Authenticate', 'Basic realm="Niva Bupa Vendor API Documentation"');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res.status(401).send(`
       <!DOCTYPE html>
       <html>
