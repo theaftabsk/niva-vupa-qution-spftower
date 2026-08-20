@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Briefcase,
   Archive,
+  Terminal,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -118,6 +119,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           href: "/admin/vendors",
           label: "Vendors Management",
           icon: Building2,
+        },
+        {
+          href: "/admin/api-logs",
+          label: "Vendor API Logs",
+          icon: Terminal,
         },
         {
           href: "/admin/logs",

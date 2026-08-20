@@ -42,9 +42,11 @@ model Vendor {
   passwordHash        String             // Bcrypt Hashed Password
   phone               String?
   contactPerson       String?
+  apiKey              String?            @unique // Unique API Key for Vendor Agency API integration
   status              String             @default("ACTIVE") // ACTIVE, SUSPENDED, INACTIVE
   assignedAssessments VendorAssessment[]
   candidates          Candidate[]
+  apiLogs             VendorApiLog[]
   creditUsed          Int                @default(0) // Total exams launched under this vendor
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
@@ -106,31 +108,32 @@ model Question {
 }
 
 model Candidate {
-  id             String        @id @default(uuid())
-  assessmentId   String
-  assessment     Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
-  vendorId       String?       // NULL = SuperAdmin/Direct, String = Assigned Vendor
-  vendor         Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  name           String
-  email          String
-  phone          String
-  applicationId  String?       // Headstart CRM / Enrolment ID
-  crmCandidateId String?       // Headstart CRM Candidate ID
-  referenceId    String        @unique
-  secureToken    String?       @unique @default(uuid()) // Unique secure exam link token
-  emailStatus    String        @default("PENDING") // PENDING, SENT, DELIVERED, FAILED
-  emailSentAt    DateTime?
-  status         String        @default("REGISTERED") // REGISTERED, IN_PROGRESS, COMPLETED, DISQUALIFIED
-  isDeleted      Boolean       @default(false)
-  deletedAt      DateTime?
-  deletedByRole  String?       // "VENDOR" | "ADMIN"
-  deletedById    String?
-  deletedByName  String?
-  deletedReason  String?
-  attempts       ExamAttempt[]
-  emailLogs      EmailLog[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @default(now()) @updatedAt
+  id                String        @id @default(uuid())
+  assessmentId      String
+  assessment        Assessment    @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  vendorId          String?       // NULL = SuperAdmin/Direct, String = Assigned Vendor
+  vendor            Vendor?       @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  name              String
+  email             String
+  phone             String
+  applicationId     String?       // Headstart CRM / Enrolment ID
+  crmCandidateId    String?       // Headstart CRM Candidate ID
+  vendorCandidateId String?       // Vendor Agency Candidate ID
+  referenceId       String        @unique
+  secureToken       String?       @unique @default(uuid()) // Unique secure exam link token
+  emailStatus       String        @default("PENDING") // PENDING, SENT, DELIVERED, FAILED
+  emailSentAt       DateTime?
+  status            String        @default("REGISTERED") // REGISTERED, IN_PROGRESS, COMPLETED, DISQUALIFIED
+  isDeleted         Boolean       @default(false)
+  deletedAt         DateTime?
+  deletedByRole     String?       // "VENDOR" | "ADMIN"
+  deletedById       String?
+  deletedByName     String?
+  deletedReason     String?
+  attempts          ExamAttempt[]
+  emailLogs         EmailLog[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
 }
 
 model IntegrationConfig {
@@ -276,4 +279,22 @@ model CreditHistory {
   description  String   // e.g. "Initial Allocation", "Exam Start: Aftab Sk (Assessment: aa-2812)", "Super Admin Top-up"
   adminName    String?  // Super admin name who allocated/adjusted
   createdAt    DateTime @default(now())
+}
+
+// Audit log for all Vendor Agency API requests (Assessment create, Candidate add, Status check, etc.)
+model VendorApiLog {
+  id           String    @id @default(uuid())
+  vendorId     String
+  vendor       Vendor    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  apiType      String    // "ASSESSMENT_CREATE", "CANDIDATE_ADD", "ACTIVE_ASSESSMENTS", "CANDIDATE_STATUS"
+  endpoint     String
+  method       String    // "GET", "POST"
+  ipAddress    String?
+  status       String    @default("SUCCESS") // "SUCCESS", "FAILED"
+  statusCode   Int       @default(200)
+  requestBody  String?   // JSON string of request summary
+  responseBody String?   // JSON string of response summary
+  itemsCount   Int       @default(0) // Candidates count or assessments count
+  errorMessage String?
+  createdAt    DateTime  @default(now())
 }

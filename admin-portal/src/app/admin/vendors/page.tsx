@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Users,
   Plus,
@@ -22,6 +23,7 @@ import {
   AlertCircle,
   Activity,
   Layers,
+  Eye,
 } from "lucide-react";
 
 interface AssessmentItem {
@@ -38,6 +40,7 @@ interface VendorItem {
   name: string;
   email: string;
   phone?: string;
+  apiKey?: string;
   contactPerson?: string;
   status: string;
   creditUsed: number;
@@ -53,6 +56,7 @@ export default function VendorsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedEmail, setCopiedEmail] = useState<string | null>(null);
+  const [copiedApiKey, setCopiedApiKey] = useState<string | null>(null);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState(false);
@@ -131,6 +135,12 @@ export default function VendorsManagementPage() {
     navigator.clipboard.writeText(text);
     setCopiedEmail(text);
     setTimeout(() => setCopiedEmail(null), 2000);
+  };
+
+  const handleCopyApiKey = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedApiKey(text);
+    setTimeout(() => setCopiedApiKey(null), 2000);
   };
 
   const handleCreateVendor = async (e: React.FormEvent) => {
@@ -475,12 +485,20 @@ export default function VendorsManagementPage() {
                     {/* Name & Code */}
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-black flex items-center justify-center text-xs shrink-0">
+                        <Link
+                          href={`/admin/vendors/${vendor.id}`}
+                          className="w-9 h-9 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-700 font-black flex items-center justify-center text-xs shrink-0 transition-colors"
+                        >
                           {vendor.name.slice(0, 2).toUpperCase()}
-                        </div>
+                        </Link>
                         <div>
                           <div className="font-black text-slate-900 flex items-center gap-1.5">
-                            <span>{vendor.name}</span>
+                            <Link
+                              href={`/admin/vendors/${vendor.id}`}
+                              className="hover:text-blue-600 hover:underline transition-colors"
+                            >
+                              {vendor.name}
+                            </Link>
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
                               {vendor.vendorCode}
                             </span>
@@ -492,7 +510,7 @@ export default function VendorsManagementPage() {
                       </div>
                     </td>
 
-                    {/* Email & Phone */}
+                    {/* Email, Phone & API Key */}
                     <td className="py-3.5 px-4">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 font-bold text-slate-800">
@@ -510,6 +528,21 @@ export default function VendorsManagementPage() {
                           <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold">
                             <Phone size={11} className="text-slate-400 shrink-0" />
                             <span>{vendor.phone}</span>
+                          </div>
+                        )}
+                        {vendor.apiKey && (
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-mono text-[10px] font-bold border border-purple-200">
+                              <KeyRound size={10} className="text-purple-600" />
+                              <span className="truncate max-w-[110px]">{vendor.apiKey}</span>
+                            </span>
+                            <button
+                              onClick={() => handleCopyApiKey(vendor.apiKey || "")}
+                              className="p-1 hover:bg-purple-100 rounded text-purple-600 hover:text-purple-900 cursor-pointer"
+                              title="Copy Vendor API Key"
+                            >
+                              {copiedApiKey === vendor.apiKey ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -567,6 +600,15 @@ export default function VendorsManagementPage() {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        <Link
+                          href={`/admin/vendors/${vendor.id}`}
+                          className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer border border-purple-200/60"
+                          title="View 360° Profile & Logs"
+                        >
+                          <Eye size={12} />
+                          <span>360° View</span>
+                        </Link>
+
                         <button
                           onClick={() => openAssignModal(vendor)}
                           className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 cursor-pointer"

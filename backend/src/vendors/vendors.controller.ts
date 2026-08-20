@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   UseGuards,
   Req,
   ForbiddenException,
@@ -35,6 +36,39 @@ export class VendorsController {
   @Get()
   async findAll() {
     return this.vendorsService.findAll();
+  }
+
+  @Get('api-logs/all')
+  async getAllVendorApiLogs(
+    @Query('vendorId') vendorId?: string,
+    @Query('apiType') apiType?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.vendorsService.getAllVendorApiLogs({
+      vendorId,
+      apiType,
+      status,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Get('activity-logs/all')
+  async getAllVendorActivityLogs(
+    @Query('vendorId') vendorId?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.vendorsService.getAllVendorActivityLogs({
+      vendorId,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Get(':id/dashboard-details')
+  async getVendorDashboardDetails(@Param('id') id: string) {
+    return this.vendorsService.getVendorDashboardDetails(id);
   }
 
   @Get(':id')
@@ -71,6 +105,11 @@ export class VendorsController {
     @Body() body: { candidateIds: string[]; toVendorId: string | null },
   ) {
     return this.vendorsService.reassignCandidates(body.candidateIds, body.toVendorId);
+  }
+
+  @Post(':id/regenerate-api-key')
+  async regenerateApiKey(@Param('id') id: string) {
+    return this.vendorsService.regenerateApiKey(id);
   }
 
   @Delete(':id')

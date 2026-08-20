@@ -9,6 +9,7 @@ import { CandidatesModule } from './candidates/candidates.module';
 import { ProctoringModule } from './proctoring/proctoring.module';
 import { AssessmentsModule } from './assessments/assessments.module';
 import { HeadstartIntegrationModule } from './integration/headstart/headstart-integration.module';
+import { VendorApiModule } from './integration/vendor-api/vendor-api.module';
 import { EmailModule } from './email/email.module';
 import { CreditsModule } from './credits/credits.module';
 import { SuperAdminModule } from './super-admin/super-admin.module';
@@ -31,6 +32,7 @@ import { AppService } from './app.service';
     ProctoringModule,
     AssessmentsModule,
     HeadstartIntegrationModule,
+    VendorApiModule,
     EmailModule,
     CreditsModule,
     SuperAdminModule,
