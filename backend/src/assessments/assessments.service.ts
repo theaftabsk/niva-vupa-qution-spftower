@@ -90,6 +90,13 @@ export class AssessmentsService {
         totalCandidates: ass._count.candidates,
         durationMins: ass.durationMins || EXAM_DURATION_MINS,
         totalQuestions: TOTAL_QUESTIONS,
+        vendorAssignments: ass.vendorAssignments.map((va) => ({
+          vendorId: va.vendor?.id,
+          vendorName: va.vendor?.name,
+          vendorCode: va.vendor?.vendorCode,
+          assignedBy: va.assignedBy,
+          assignedAt: va.assignedAt,
+        })),
         assignedVendors: ass.vendorAssignments.map((va) => va.vendor),
         uniqueCandidateLink: `${frontendBaseUrl}/${ass.slug || ass.id}`,
       };

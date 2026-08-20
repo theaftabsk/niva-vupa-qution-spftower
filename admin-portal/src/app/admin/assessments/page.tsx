@@ -5,7 +5,8 @@ import Link from "next/link";
 import {
   BookOpen, Plus, Clock, Link2, Copy, CheckCircle2, Trash2,
   Edit2, RefreshCw, X, Calendar, AlertCircle, Zap, Users,
-  Eye, EyeOff, ExternalLink
+  Eye, EyeOff, ExternalLink, Search, Filter, ChevronLeft, ChevronRight,
+  Building2, ShieldCheck, Terminal
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import ToastContainer, { ToastMessage } from "@/components/Toast";
@@ -25,6 +26,18 @@ interface AssessmentSession {
   passingPercentage: number;
   maxProctorWarnings: number;
   uniqueCandidateLink: string;
+  vendorAssignments?: Array<{
+    vendorId?: string;
+    vendorName?: string;
+    vendorCode?: string;
+    assignedBy?: string;
+    assignedAt?: string;
+  }>;
+  assignedVendors?: Array<{
+    id: string;
+    name: string;
+    vendorCode: string;
+  }>;
   createdAt: string;
 }
 
@@ -278,15 +291,42 @@ export default function AdminAssessmentsPage() {
     }
   };
 
+  // Filter and Pagination State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(25);
+
+  const filteredSessions = sessions.filter((s) => {
+    const computed = getComputedStatus(s);
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      !searchQuery ||
+      s.name.toLowerCase().includes(q) ||
+      s.slug.toLowerCase().includes(q) ||
+      s.vendorAssignments?.some(va => va.vendorName?.toLowerCase().includes(q) || va.vendorCode?.toLowerCase().includes(q));
+
+    const matchesStatus = statusFilter === "ALL" || computed === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredSessions.length / pageSize) || 1;
+  const paginatedSessions = filteredSessions.slice((page - 1) * pageSize, page * pageSize);
+
   return (
-    <div className="assess-page">
-      {/* Header Bar */}
+    <div className="assess-container">
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {/* Header */}
       <div className="assess-header">
-        <p className="assess-subtitle">
-          {userRole === "VENDOR"
-            ? "Your assigned assessments. Click any assessment to upload candidates and manage exam sessions."
-            : "Create unique candidate exam links with scheduled access windows"}
-        </p>
+        <div>
+          <h1>Exams & Assessments</h1>
+          <p>
+            {userRole === "VENDOR"
+              ? "View and access assessment sessions assigned to your agency"
+              : "Create unique candidate exam links with scheduled access windows"}
+          </p>
+        </div>
         <div className="assess-header-actions">
           <button className="assess-refresh-btn" onClick={loadSessions} title="Refresh Sessions">
             <RefreshCw size={15} /> Refresh List
@@ -308,32 +348,90 @@ export default function AdminAssessmentsPage() {
         <div className="assess-fixed-item"><BookOpen size={15} /> All sessions generate unique exam URLs</div>
       </div>
 
+      {/* Search & Filter Bar */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", background: "#fff", padding: "12px 16px", borderRadius: "14px", border: "1px solid #E2E8F0", marginBottom: "16px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", flex: 1 }}>
+          <div style={{ position: "relative", minWidth: "220px" }}>
+            <Search size={13} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94A3B8" }} />
+            <input
+              type="text"
+              placeholder="Search assessment, slug, vendor..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+              style={{ width: "100%", paddingLeft: "30px", paddingRight: "10px", paddingTop: "6px", paddingBottom: "6px", fontSize: "12px", fontWeight: "600", borderRadius: "10px", border: "1px solid #CBD5E1", outline: "none" }}
+            />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "#F8FAFC", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "4px 10px" }}>
+            <Filter size={12} color="#64748B" />
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              style={{ background: "transparent", border: "none", fontSize: "12px", fontWeight: "700", color: "#334155", outline: "none", cursor: "pointer" }}
+            >
+              <option value="ALL">All Statuses ({sessions.length})</option>
+              <option value="ACTIVE">Active</option>
+              <option value="UPCOMING">Upcoming</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="DRAFT">Draft</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Page Size Selector */}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748B" }}>Show:</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#F1F5F9", padding: "2px", borderRadius: "8px" }}>
+            {[25, 50, 100].map((size) => (
+              <button
+                key={size}
+                onClick={() => { setPageSize(size); setPage(1); }}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                  borderRadius: "6px",
+                  border: "none",
+                  cursor: "pointer",
+                  background: pageSize === size ? "#0F172A" : "transparent",
+                  color: pageSize === size ? "#FFFFFF" : "#475569",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Session Grid */}
       {loading ? (
         <div className="assess-loading">
           <div className="assess-spinner"></div>
           <p>Loading assessment sessions...</p>
         </div>
-      ) : sessions.length === 0 ? (
+      ) : filteredSessions.length === 0 ? (
         <div className="assess-empty">
           <BookOpen size={42} className="assess-empty-icon" />
           <p>
             {userRole === "VENDOR"
               ? "No assessments assigned to your vendor account yet. Please contact HR Administrator."
-              : "No assessment sessions created yet."}
+              : "No assessment sessions match your search/filter."}
           </p>
-          {userRole !== "VENDOR" && (
+          {userRole !== "VENDOR" && sessions.length === 0 && (
             <button className="assess-create-btn" onClick={openCreate} style={{ margin: "16px auto 0" }}>
               <Plus size={15} /> Create First Session
             </button>
           )}
         </div>
       ) : (
-        <div className="assess-excel-wrapper">
-          <table className="assess-excel-table">
-            <thead>
+        <div className="assess-excel-wrapper" style={{ maxHeight: "560px", overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: "14px", background: "#fff" }}>
+          <table className="assess-excel-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
               <tr>
-                <th style={{ minWidth: "220px" }}>Session Name</th>
+                <th style={{ minWidth: "240px", padding: "12px 16px" }}>Session Details & Creator</th>
                 <th style={{ width: "100px", minWidth: "100px" }}>Status</th>
                 <th style={{ minWidth: "140px" }}>Configuration</th>
                 <th style={{ minWidth: "180px" }}>Access Schedule Window</th>
@@ -342,22 +440,50 @@ export default function AdminAssessmentsPage() {
               </tr>
             </thead>
             <tbody>
-              {sessions.map((session) => {
+              {paginatedSessions.map((session) => {
                 const computedStatus = getComputedStatus(session);
                 const isCopied = copiedId === session.id;
                 const displayLink = getDisplayExamLink(session.uniqueCandidateLink);
+
+                // Determine Creator Origin
+                const isApiCreated = session.vendorAssignments?.[0]?.assignedBy?.startsWith("API:");
+                const vendorName = session.vendorAssignments?.[0]?.vendorName || session.assignedVendors?.[0]?.name;
+                const vendorCode = session.vendorAssignments?.[0]?.vendorCode || session.assignedVendors?.[0]?.vendorCode;
+
                 return (
                   <tr key={session.id} className={`assess-excel-row assess-excel-row--${computedStatus.toLowerCase()}`}>
                     
-                    {/* Col 1: Session Name & Description */}
-                    <td>
+                    {/* Col 1: Session Name & Creator Origin */}
+                    <td style={{ padding: "12px 16px" }}>
                       <Link href={`/admin/assessments/${session.id}`} style={{ textDecoration: "none" }}>
-                        <div className="excel-session-name" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#003F72", cursor: "pointer" }}>
+                        <div className="excel-session-name" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#003F72", cursor: "pointer", fontWeight: "800" }}>
                           {session.name}
                           <ExternalLink size={12} color="#00AEEF" />
                         </div>
                       </Link>
-                      {session.description && <div className="excel-session-desc">{session.description}</div>}
+                      
+                      {/* Creator Badge & Timestamp */}
+                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                        {isApiCreated ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#F3E8FF", color: "#7E22CE", border: "1px solid #D8B4FE" }}>
+                            <Terminal size={10} /> API: {vendorName || vendorCode || "Vendor"}
+                          </span>
+                        ) : vendorName ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE" }}>
+                            <Building2 size={10} /> Vendor: {vendorName}
+                          </span>
+                        ) : (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#F1F5F9", color: "#334155", border: "1px solid #CBD5E1" }}>
+                            <ShieldCheck size={10} /> Super Admin
+                          </span>
+                        )}
+
+                        <span style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "600" }}>
+                          • Created: {new Date(session.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                        </span>
+                      </div>
+
+                      {session.description && <div className="excel-session-desc" style={{ marginTop: "4px", fontSize: "11px", color: "#64748B" }}>{session.description}</div>}
                     </td>
 
                     {/* Col 2: Status */}
@@ -432,6 +558,34 @@ export default function AdminAssessmentsPage() {
               })}
             </tbody>
           </table>
+
+          {/* Pagination Footer */}
+          {filteredSessions.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
+              <span style={{ fontSize: "12px", fontWeight: "600", color: "#64748B" }}>
+                Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, filteredSessions.length)} of {filteredSessions.length} sessions
+              </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <button
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#fff", cursor: page === 1 ? "not-allowed" : "pointer", opacity: page === 1 ? 0.4 : 1 }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span style={{ fontSize: "12px", fontWeight: "800", color: "#1E293B", padding: "0 8px" }}>
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#fff", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.4 : 1 }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

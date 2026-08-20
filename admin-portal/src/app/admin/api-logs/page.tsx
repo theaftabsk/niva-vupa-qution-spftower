@@ -19,6 +19,8 @@ import {
   ArrowUpRight,
   ShieldCheck,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 interface VendorApiLogItem {
@@ -55,6 +57,7 @@ export default function VendorApiLogsPage() {
   const [loading, setLoading] = useState(true);
   const [totalLogs, setTotalLogs] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(20);
 
   // Filters
   const [selectedVendorId, setSelectedVendorId] = useState<string>("ALL");
@@ -97,7 +100,7 @@ export default function VendorApiLogsPage() {
       if (selectedApiType !== "ALL") params.append("apiType", selectedApiType);
       if (selectedStatus !== "ALL") params.append("status", selectedStatus);
       params.append("page", String(page));
-      params.append("limit", "50");
+      params.append("limit", String(pageSize));
 
       const res = await fetch(`${baseUrl}/api/v1/vendors/api-logs/all?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +123,7 @@ export default function VendorApiLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [selectedVendorId, selectedApiType, selectedStatus, page]);
+  }, [selectedVendorId, selectedApiType, selectedStatus, page, pageSize]);
 
   const handleCopyJson = (text: string, type: string) => {
     navigator.clipboard.writeText(text);
@@ -143,6 +146,8 @@ export default function VendorApiLogsPage() {
       log.endpoint?.toLowerCase().includes(q)
     );
   });
+
+  const totalPages = Math.ceil(totalLogs / pageSize) || 1;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -279,33 +284,54 @@ export default function VendorApiLogsPage() {
                 <option value="FAILED">Failed / Error Only</option>
               </select>
             </div>
+
+            {/* Search Box */}
+            <div className="relative w-full sm:w-56">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search logs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600"
+              />
+            </div>
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-full sm:w-64">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search vendor, endpoint..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600"
-            />
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500">Show:</span>
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
+              {[10, 20, 50].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => {
+                    setPageSize(size);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
+                    pageSize === size ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
-        {/* Table Content */}
-        <div className="overflow-x-auto">
+        {/* Table Content with fixed max-height & sticky header */}
+        <div className="max-h-[520px] overflow-y-auto">
           <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider">
-                <th className="py-3.5 px-4">Timestamp</th>
-                <th className="py-3.5 px-4">Vendor</th>
-                <th className="py-3.5 px-4">API Action</th>
-                <th className="py-3.5 px-4">Endpoint & Method</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Entities</th>
-                <th className="py-3.5 px-4 text-right">Payload</th>
+            <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10 shadow-2xs">
+              <tr className="text-slate-700 font-extrabold uppercase tracking-wider">
+                <th className="py-3 px-4">Timestamp</th>
+                <th className="py-3 px-4">Vendor</th>
+                <th className="py-3 px-4">API Action</th>
+                <th className="py-3 px-4">Endpoint & Method</th>
+                <th className="py-3 px-4 text-center">Status</th>
+                <th className="py-3 px-4 text-center">Entities</th>
+                <th className="py-3 px-4 text-right">Payload</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -336,7 +362,7 @@ export default function VendorApiLogsPage() {
                   return (
                     <tr key={log.id} className="hover:bg-blue-50/30 transition-colors">
                       {/* Timestamp */}
-                      <td className="py-3 px-4 text-slate-600 font-medium whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-slate-600 font-medium whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <Clock size={12} className="text-slate-400" />
                           <span>{new Date(log.createdAt).toLocaleString()}</span>
@@ -344,7 +370,7 @@ export default function VendorApiLogsPage() {
                       </td>
 
                       {/* Vendor */}
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                             {log.vendor?.vendorCode || "VND"}
@@ -356,14 +382,14 @@ export default function VendorApiLogsPage() {
                       </td>
 
                       {/* API Action */}
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-4">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-md font-bold text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
                           {log.apiType}
                         </span>
                       </td>
 
                       {/* Endpoint & Method */}
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 px-4">
                         <div className="flex items-center gap-1.5 font-mono text-[11px]">
                           <span
                             className={`px-1.5 py-0.5 rounded text-[10px] font-black ${
@@ -377,7 +403,7 @@ export default function VendorApiLogsPage() {
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-2.5 px-4 text-center">
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-extrabold text-[10px] ${
                             isSuccess
@@ -391,7 +417,7 @@ export default function VendorApiLogsPage() {
                       </td>
 
                       {/* Entities Count */}
-                      <td className="py-3 px-4 text-center font-black text-slate-800">
+                      <td className="py-2.5 px-4 text-center font-black text-slate-800">
                         {log.itemsCount > 0 ? (
                           <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold text-[11px] border border-purple-200">
                             {log.itemsCount}
@@ -402,7 +428,7 @@ export default function VendorApiLogsPage() {
                       </td>
 
                       {/* Payload Inspect Action */}
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-2.5 px-4 text-right">
                         <button
                           onClick={() => setSelectedLog(log)}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 font-bold text-[11px] border border-slate-200 transition-colors cursor-pointer"
@@ -417,6 +443,32 @@ export default function VendorApiLogsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <span className="text-xs text-slate-500 font-semibold">
+            Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalLogs)} of {totalLogs} requests
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="px-3 py-1 text-xs font-bold text-slate-700">
+              Page {page} of {totalPages}
+            </span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
 

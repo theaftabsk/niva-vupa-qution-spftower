@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -26,6 +26,11 @@ import {
   Plus,
   Eye,
   Award,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface VendorDashboardData {
@@ -106,6 +111,19 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
   const [regeneratingKey, setRegeneratingKey] = useState(false);
 
+  // Filter & Pagination States
+  const [candidateSearch, setCandidateSearch] = useState("");
+  const [candidateStatusFilter, setCandidateStatusFilter] = useState("ALL");
+  const [candidatePage, setCandidatePage] = useState(1);
+  const [candidatePageSize, setCandidatePageSize] = useState<number>(20);
+
+  const [resultsSearch, setResultsSearch] = useState("");
+  const [resultsPage, setResultsPage] = useState(1);
+  const [resultsPageSize, setResultsPageSize] = useState<number>(20);
+
+  const [apiLogsPage, setApiLogsPage] = useState(1);
+  const [apiLogsPageSize, setApiLogsPageSize] = useState<number>(20);
+
   const getApiBaseUrl = () => {
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
   };
@@ -168,11 +186,68 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  // Filtered Candidates with pagination
+  const filteredCandidates = useMemo(() => {
+    if (!data?.candidates) return [];
+    return data.candidates.filter((c) => {
+      const matchesSearch =
+        !candidateSearch ||
+        c.name.toLowerCase().includes(candidateSearch.toLowerCase()) ||
+        c.email.toLowerCase().includes(candidateSearch.toLowerCase()) ||
+        c.applicationId?.toLowerCase().includes(candidateSearch.toLowerCase()) ||
+        c.assessmentName?.toLowerCase().includes(candidateSearch.toLowerCase());
+
+      const matchesStatus =
+        candidateStatusFilter === "ALL" || c.status === candidateStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [data?.candidates, candidateSearch, candidateStatusFilter]);
+
+  const paginatedCandidates = useMemo(() => {
+    const start = (candidatePage - 1) * candidatePageSize;
+    return filteredCandidates.slice(start, start + candidatePageSize);
+  }, [filteredCandidates, candidatePage, candidatePageSize]);
+
+  const totalCandidatePages = Math.ceil(filteredCandidates.length / candidatePageSize) || 1;
+
+  // Filtered Results with pagination
+  const completedCandidates = useMemo(() => {
+    if (!data?.candidates) return [];
+    return data.candidates
+      .filter((c) => c.status === "COMPLETED")
+      .filter((c) => {
+        if (!resultsSearch) return true;
+        const q = resultsSearch.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          c.applicationId?.toLowerCase().includes(q)
+        );
+      });
+  }, [data?.candidates, resultsSearch]);
+
+  const paginatedResults = useMemo(() => {
+    const start = (resultsPage - 1) * resultsPageSize;
+    return completedCandidates.slice(start, start + resultsPageSize);
+  }, [completedCandidates, resultsPage, resultsPageSize]);
+
+  const totalResultsPages = Math.ceil(completedCandidates.length / resultsPageSize) || 1;
+
+  // Paginated API Logs
+  const paginatedApiLogs = useMemo(() => {
+    if (!data?.apiLogs) return [];
+    const start = (apiLogsPage - 1) * apiLogsPageSize;
+    return data.apiLogs.slice(start, start + apiLogsPageSize);
+  }, [data?.apiLogs, apiLogsPage, apiLogsPageSize]);
+
+  const totalApiLogPages = Math.ceil((data?.apiLogs?.length || 0) / apiLogsPageSize) || 1;
+
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto flex flex-col items-center justify-center min-h-[50vh]">
         <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="font-bold text-xs text-slate-500 mt-3">Loading vendor 360° profile...</p>
+        <p className="font-bold text-xs text-slate-500 mt-3">Loading vendor profile & logs...</p>
       </div>
     );
   }
@@ -188,8 +263,7 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const { vendor, stats, assignedAssessments, candidates, apiLogs } = data;
-  const completedCandidates = candidates.filter((c) => c.status === "COMPLETED");
+  const { vendor, stats, assignedAssessments, apiLogs } = data;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -326,7 +400,7 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
           }`}
         >
           <Users size={14} />
-          <span>Candidates ({candidates.length})</span>
+          <span>Candidates ({filteredCandidates.length})</span>
         </button>
 
         <button
@@ -394,12 +468,12 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                   onClick={() => setActiveTab("candidates")}
                   className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
                 >
-                  View All ({candidates.length})
+                  View All ({data.candidates.length})
                 </button>
               </div>
-              <div className="divide-y divide-slate-100">
-                {candidates.slice(0, 5).map((c) => (
-                  <div key={c.id} className="py-2.5 flex items-center justify-between">
+              <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                {data.candidates.slice(0, 6).map((c) => (
+                  <div key={c.id} className="py-2.5 flex items-center justify-between pr-1">
                     <div>
                       <p className="font-bold text-xs text-slate-900">{c.name}</p>
                       <p className="text-[11px] text-slate-500">{c.email} | App: {c.applicationId}</p>
@@ -410,6 +484,8 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                           ? "bg-emerald-50 text-emerald-700"
                           : c.status === "IN_PROGRESS"
                           ? "bg-blue-50 text-blue-700"
+                          : c.status === "DISQUALIFIED"
+                          ? "bg-rose-50 text-rose-700"
                           : "bg-slate-100 text-slate-700"
                       }`}
                     >
@@ -431,9 +507,9 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                   View All Logs ({apiLogs.length})
                 </button>
               </div>
-              <div className="divide-y divide-slate-100">
-                {apiLogs.slice(0, 5).map((log) => (
-                  <div key={log.id} className="py-2.5 flex items-center justify-between">
+              <div className="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                {apiLogs.slice(0, 6).map((log) => (
+                  <div key={log.id} className="py-2.5 flex items-center justify-between pr-1">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5 font-mono text-[11px]">
                         <span className="font-bold text-blue-700">{log.method}</span>
@@ -461,51 +537,119 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-              Assigned Assessments for {vendor.name}
+              Assigned Assessments ({assignedAssessments.length})
             </h3>
           </div>
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-extrabold uppercase">
-                <th className="py-3 px-4">Assessment Name</th>
-                <th className="py-3 px-4">Slug & Link</th>
-                <th className="py-3 px-4 text-center">Duration</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Candidates Enrolled</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {assignedAssessments.map((a) => (
-                <tr key={a.id} className="hover:bg-blue-50/30">
-                  <td className="py-3 px-4 font-bold text-slate-900">{a.name}</td>
-                  <td className="py-3 px-4 font-mono text-[11px] text-blue-600">/{a.slug}</td>
-                  <td className="py-3 px-4 text-center font-semibold text-slate-600">{a.durationMins || 45} mins</td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">
-                      {a.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center font-black text-slate-800">{a.candidatesCount}</td>
+          <div className="max-h-[480px] overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10">
+                <tr className="text-slate-700 font-extrabold uppercase">
+                  <th className="py-3 px-4">Assessment Name</th>
+                  <th className="py-3 px-4">Slug & Link</th>
+                  <th className="py-3 px-4 text-center">Duration</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Candidates Enrolled</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {assignedAssessments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
+                      No assessments assigned to this vendor yet.
+                    </td>
+                  </tr>
+                ) : (
+                  assignedAssessments.map((a) => (
+                    <tr key={a.id} className="hover:bg-blue-50/30">
+                      <td className="py-3 px-4 font-bold text-slate-900">{a.name}</td>
+                      <td className="py-3 px-4 font-mono text-[11px] text-blue-600">/{a.slug}</td>
+                      <td className="py-3 px-4 text-center font-semibold text-slate-600">{a.durationMins || 45} mins</td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-bold text-[10px]">
+                          {a.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center font-black text-slate-800">{a.candidatesCount}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Tab 3: Candidates */}
       {activeTab === "candidates" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-              Candidate Roster ({candidates.length})
-            </h3>
+          {/* Controls Bar: Search, Status Filter & Page Size */}
+          <div className="p-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+            <div className="flex flex-wrap items-center gap-2 flex-1">
+              {/* Search Box */}
+              <div className="relative w-full sm:w-64">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search candidate, app id..."
+                  value={candidateSearch}
+                  onChange={(e) => {
+                    setCandidateSearch(e.target.value);
+                    setCandidatePage(1);
+                  }}
+                  className="w-full pl-8 pr-3 py-1.5 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-2xs">
+                <Filter size={13} className="text-slate-400" />
+                <select
+                  value={candidateStatusFilter}
+                  onChange={(e) => {
+                    setCandidateStatusFilter(e.target.value);
+                    setCandidatePage(1);
+                  }}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Statuses ({data.candidates.length})</option>
+                  <option value="NOT_STARTED">Not Started</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="DISQUALIFIED">Disqualified</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Page Size Selector (20 / 50 per page) */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">Show:</span>
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
+                {[10, 20, 50].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => {
+                      setCandidatePageSize(size);
+                      setCandidatePage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
+                      candidatePageSize === size
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="overflow-x-auto">
+
+          {/* Table Container with max-height & clean scrolling */}
+          <div className="max-h-[480px] overflow-y-auto">
             <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-extrabold uppercase">
-                  <th className="py-3 px-4">Candidate Name</th>
+              <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10 shadow-2xs">
+                <tr className="text-slate-700 font-extrabold uppercase">
+                  <th className="py-3 px-4">Candidate Details</th>
                   <th className="py-3 px-4">App ID / Reference</th>
                   <th className="py-3 px-4">Assessment</th>
                   <th className="py-3 px-4">Unique Exam Link</th>
@@ -513,49 +657,85 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {candidates.map((c) => (
-                  <tr key={c.id} className="hover:bg-blue-50/30">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-900">{c.name}</div>
-                      <div className="text-[11px] text-slate-500">{c.email}</div>
-                    </td>
-                    <td className="py-3 px-4 font-mono text-[11px] font-bold text-slate-700">
-                      {c.applicationId}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-slate-800">{c.assessmentName}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          readOnly
-                          value={c.examUrl}
-                          className="px-2 py-1 bg-slate-50 rounded border border-slate-200 text-[10px] font-mono text-slate-600 max-w-[200px] truncate"
-                        />
-                        <button
-                          onClick={() => handleCopy(c.examUrl, c.id)}
-                          className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 cursor-pointer"
-                          title="Copy Exam URL"
-                        >
-                          {copiedText === c.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`px-2 py-0.5 rounded-full font-black text-[10px] ${
-                          c.status === "COMPLETED"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : c.status === "IN_PROGRESS"
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
-                            : "bg-slate-100 text-slate-700"
-                        }`}
-                      >
-                        {c.status}
-                      </span>
+                {paginatedCandidates.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
+                      No candidates match the filter.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  paginatedCandidates.map((c) => (
+                    <tr key={c.id} className="hover:bg-blue-50/30">
+                      <td className="py-2.5 px-4">
+                        <div className="font-bold text-slate-900">{c.name}</div>
+                        <div className="text-[11px] text-slate-500">{c.email} {c.phone ? `• ${c.phone}` : ''}</div>
+                      </td>
+                      <td className="py-2.5 px-4 font-mono text-[11px] font-bold text-slate-700">
+                        {c.applicationId}
+                      </td>
+                      <td className="py-2.5 px-4 font-semibold text-slate-800">{c.assessmentName}</td>
+                      <td className="py-2.5 px-4">
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            readOnly
+                            value={c.examUrl}
+                            className="px-2 py-1 bg-slate-50 rounded border border-slate-200 text-[10px] font-mono text-slate-600 max-w-[200px] truncate"
+                          />
+                          <button
+                            onClick={() => handleCopy(c.examUrl, c.id)}
+                            className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 cursor-pointer shrink-0"
+                            title="Copy Exam URL"
+                          >
+                            {copiedText === c.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-4 text-center">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full font-extrabold text-[10px] ${
+                            c.status === "COMPLETED"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : c.status === "IN_PROGRESS"
+                              ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : c.status === "DISQUALIFIED"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-slate-100 text-slate-700 border border-slate-200"
+                          }`}
+                        >
+                          {c.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <span className="text-xs text-slate-500 font-semibold">
+              Showing {(candidatePage - 1) * candidatePageSize + 1} - {Math.min(candidatePage * candidatePageSize, filteredCandidates.length)} of {filteredCandidates.length} candidates
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCandidatePage((p) => Math.max(1, p - 1))}
+                disabled={candidatePage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <span className="px-3 py-1 text-xs font-bold text-slate-700">
+                Page {candidatePage} of {totalCandidatePages}
+              </span>
+              <button
+                onClick={() => setCandidatePage((p) => Math.min(totalCandidatePages, p + 1))}
+                disabled={candidatePage >= totalCandidatePages}
+                className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -563,97 +743,220 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
       {/* Tab 4: Results */}
       {activeTab === "results" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-            <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-              Exam Submissions & Scores
-            </h3>
+          {/* Controls Bar */}
+          <div className="p-3.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+            <div className="relative w-full sm:w-64">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search result by candidate..."
+                value={resultsSearch}
+                onChange={(e) => {
+                  setResultsSearch(e.target.value);
+                  setResultsPage(1);
+                }}
+                className="w-full pl-8 pr-3 py-1.5 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">Show:</span>
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
+                {[10, 20, 50].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => {
+                      setResultsPageSize(size);
+                      setResultsPage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
+                      resultsPageSize === size
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-extrabold uppercase">
-                <th className="py-3 px-4">Candidate</th>
-                <th className="py-3 px-4">Assessment</th>
-                <th className="py-3 px-4 text-center">Obtained Marks</th>
-                <th className="py-3 px-4 text-center">Percentage</th>
-                <th className="py-3 px-4">Submitted Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {completedCandidates.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
-                    No candidates have completed the exam yet.
-                  </td>
+
+          <div className="max-h-[480px] overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10 shadow-2xs">
+                <tr className="text-slate-700 font-extrabold uppercase">
+                  <th className="py-3 px-4">Candidate</th>
+                  <th className="py-3 px-4">Assessment</th>
+                  <th className="py-3 px-4 text-center">Obtained Marks</th>
+                  <th className="py-3 px-4 text-center">Percentage</th>
+                  <th className="py-3 px-4">Submitted Time</th>
                 </tr>
-              ) : (
-                completedCandidates.map((c) => (
-                  <tr key={c.id} className="hover:bg-blue-50/30">
-                    <td className="py-3 px-4 font-bold text-slate-900">{c.name}</td>
-                    <td className="py-3 px-4 text-slate-700 font-medium">{c.assessmentName}</td>
-                    <td className="py-3 px-4 text-center font-black text-slate-900">{c.score} / 60</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[11px]">
-                        {c.percentage}%
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 font-medium">
-                      {c.submittedAt ? new Date(c.submittedAt).toLocaleString() : "-"}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedResults.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
+                      No candidates have completed the exam yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  paginatedResults.map((c) => (
+                    <tr key={c.id} className="hover:bg-blue-50/30">
+                      <td className="py-2.5 px-4 font-bold text-slate-900">{c.name}</td>
+                      <td className="py-2.5 px-4 text-slate-700 font-medium">{c.assessmentName}</td>
+                      <td className="py-2.5 px-4 text-center font-black text-slate-900">{c.score} / 60</td>
+                      <td className="py-2.5 px-4 text-center">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold text-[11px]">
+                          {c.percentage}%
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 text-slate-600 font-medium">
+                        {c.submittedAt ? new Date(c.submittedAt).toLocaleString() : "-"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Results Pagination */}
+          {completedCandidates.length > 0 && (
+            <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-semibold">
+                Showing {(resultsPage - 1) * resultsPageSize + 1} - {Math.min(resultsPage * resultsPageSize, completedCandidates.length)} of {completedCandidates.length} results
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setResultsPage((p) => Math.max(1, p - 1))}
+                  disabled={resultsPage === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-3 py-1 text-xs font-bold text-slate-700">
+                  Page {resultsPage} of {totalResultsPages}
+                </span>
+                <button
+                  onClick={() => setResultsPage((p) => Math.min(totalResultsPages, p + 1))}
+                  disabled={resultsPage >= totalResultsPages}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Tab 5: API Logs */}
       {activeTab === "apilogs" && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-              API Requests from {vendor.name}
+              API Requests from {vendor.name} ({apiLogs.length})
             </h3>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500">Show:</span>
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-0.5">
+                {[10, 20, 50].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => {
+                      setApiLogsPageSize(size);
+                      setApiLogsPage(1);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer ${
+                      apiLogsPageSize === size
+                        ? "bg-slate-900 text-white"
+                        : "text-slate-600 hover:bg-slate-100"
+                    }`}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="bg-slate-100/75 border-b border-slate-200 text-slate-700 font-extrabold uppercase">
-                <th className="py-3 px-4">Timestamp</th>
-                <th className="py-3 px-4">Action</th>
-                <th className="py-3 px-4">Endpoint</th>
-                <th className="py-3 px-4 text-center">Status</th>
-                <th className="py-3 px-4 text-center">Items</th>
-                <th className="py-3 px-4 text-right">Details</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {apiLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-blue-50/30">
-                  <td className="py-3 px-4 text-slate-600 font-medium">{new Date(log.createdAt).toLocaleString()}</td>
-                  <td className="py-3 px-4 font-bold text-blue-700">{log.apiType}</td>
-                  <td className="py-3 px-4 font-mono text-[11px] text-slate-700">{log.method} {log.endpoint}</td>
-                  <td className="py-3 px-4 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                        log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                      }`}
-                    >
-                      {log.statusCode || 200}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-center font-bold text-slate-800">{log.itemsCount}</td>
-                  <td className="py-3 px-4 text-right">
-                    <button
-                      onClick={() => setSelectedLog(log)}
-                      className="px-2 py-1 rounded bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 font-bold text-[11px] cursor-pointer"
-                    >
-                      Inspect JSON
-                    </button>
-                  </td>
+          <div className="max-h-[480px] overflow-y-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="sticky top-0 bg-slate-100 border-b border-slate-200 z-10 shadow-2xs">
+                <tr className="text-slate-700 font-extrabold uppercase">
+                  <th className="py-3 px-4">Timestamp</th>
+                  <th className="py-3 px-4">Action</th>
+                  <th className="py-3 px-4">Endpoint</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">Items</th>
+                  <th className="py-3 px-4 text-right">Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedApiLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400 font-semibold">
+                      No API logs recorded for this vendor yet.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedApiLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-blue-50/30">
+                      <td className="py-2.5 px-4 text-slate-600 font-medium whitespace-nowrap">{new Date(log.createdAt).toLocaleString()}</td>
+                      <td className="py-2.5 px-4 font-bold text-blue-700">{log.apiType}</td>
+                      <td className="py-2.5 px-4 font-mono text-[11px] text-slate-700">{log.method} {log.endpoint}</td>
+                      <td className="py-2.5 px-4 text-center">
+                        <span
+                          className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                            log.status === "SUCCESS" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                          }`}
+                        >
+                          {log.statusCode || 200}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 text-center font-bold text-slate-800">{log.itemsCount}</td>
+                      <td className="py-2.5 px-4 text-right">
+                        <button
+                          onClick={() => setSelectedLog(log)}
+                          className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-600 font-bold text-[11px] cursor-pointer"
+                        >
+                          Inspect JSON
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* API Logs Pagination */}
+          {apiLogs.length > 0 && (
+            <div className="p-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <span className="text-xs text-slate-500 font-semibold">
+                Showing {(apiLogsPage - 1) * apiLogsPageSize + 1} - {Math.min(apiLogsPage * apiLogsPageSize, apiLogs.length)} of {apiLogs.length} logs
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setApiLogsPage((p) => Math.max(1, p - 1))}
+                  disabled={apiLogsPage === 1}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                <span className="px-3 py-1 text-xs font-bold text-slate-700">
+                  Page {apiLogsPage} of {totalApiLogPages}
+                </span>
+                <button
+                  onClick={() => setApiLogsPage((p) => Math.min(totalApiLogPages, p + 1))}
+                  disabled={apiLogsPage >= totalApiLogPages}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
