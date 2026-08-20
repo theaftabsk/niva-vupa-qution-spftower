@@ -31,6 +31,7 @@ import {
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
+  RotateCcw,
 } from "lucide-react";
 
 interface VendorDashboardData {
@@ -183,6 +184,34 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
       console.error("Failed to regenerate API key:", e);
     } finally {
       setRegeneratingKey(false);
+    }
+  };
+
+  const [resettingCandidateId, setResettingCandidateId] = useState<string | null>(null);
+
+  const handleResetCandidate = async (candidateId: string, candidateName: string) => {
+    if (!confirm(`Are you sure you want to Reset & Resend exam for "${candidateName}"? This will clear any past disqualification/attempts and generate a fresh link.`)) {
+      return;
+    }
+    setResettingCandidateId(candidateId);
+    try {
+      const baseUrl = getApiBaseUrl();
+      const token = localStorage.getItem("banca_admin_token") || "";
+      const res = await fetch(`${baseUrl}/api/v1/candidates/${candidateId}/reset`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        alert(`Candidate "${candidateName}" has been successfully reset! Fresh exam link generated.`);
+        await loadVendorDetails();
+      } else {
+        alert(result.message || "Failed to reset candidate");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to reset candidate");
+    } finally {
+      setResettingCandidateId(null);
     }
   };
 
@@ -654,12 +683,13 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                   <th className="py-3 px-4">Assessment</th>
                   <th className="py-3 px-4">Unique Exam Link</th>
                   <th className="py-3 px-4 text-center">Exam Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {paginatedCandidates.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400 font-semibold">
+                    <td colSpan={6} className="py-8 text-center text-slate-400 font-semibold">
                       No candidates match the filter.
                     </td>
                   </tr>
@@ -679,7 +709,7 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                           <input
                             readOnly
                             value={c.examUrl}
-                            className="px-2 py-1 bg-slate-50 rounded border border-slate-200 text-[10px] font-mono text-slate-600 max-w-[200px] truncate"
+                            className="px-2 py-1 bg-slate-50 rounded border border-slate-200 text-[10px] font-mono text-slate-600 max-w-[180px] truncate"
                           />
                           <button
                             onClick={() => handleCopy(c.examUrl, c.id)}
@@ -704,6 +734,17 @@ export default function VendorDetailsPage({ params }: { params: Promise<{ id: st
                         >
                           {c.status}
                         </span>
+                      </td>
+                      <td className="py-2.5 px-4 text-right">
+                        <button
+                          onClick={() => handleResetCandidate(c.id, c.name)}
+                          disabled={resettingCandidateId === c.id}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-[10px] border border-amber-200 transition-colors cursor-pointer disabled:opacity-50"
+                          title="Clear past attempts & generate fresh exam link"
+                        >
+                          <RotateCcw size={11} className={resettingCandidateId === c.id ? "animate-spin text-amber-600" : "text-amber-600"} />
+                          <span>Reset & Resend</span>
+                        </button>
                       </td>
                     </tr>
                   ))

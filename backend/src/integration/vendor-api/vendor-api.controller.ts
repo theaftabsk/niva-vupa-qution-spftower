@@ -95,6 +95,32 @@ export class AddCandidatesDto {
   candidates: CandidateItemDto[];
 }
 
+export class ResetCandidateDto {
+  @ApiPropertyOptional({
+    example: 'APP-2026-001',
+    description: 'Candidate Application ID / Unique Reference ID',
+  })
+  applicationId?: string;
+
+  @ApiPropertyOptional({
+    example: 'c3f74389-7ee3-4ca2-ac3b-7af0d74037f2',
+    description: 'Internal Candidate UUID',
+  })
+  candidateId?: string;
+
+  @ApiPropertyOptional({
+    example: 'VND-CAND-01',
+    description: 'External Vendor Candidate ID',
+  })
+  vendorCandidateId?: string;
+
+  @ApiPropertyOptional({
+    example: 'aftab@example.com',
+    description: 'Candidate Email address',
+  })
+  email?: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 @ApiTags('Vendor Integration APIs')
@@ -273,5 +299,41 @@ export class VendorApiController {
       assessmentId,
       email,
     });
+  }
+
+  /**
+   * 5️⃣ Incoming API 5: Candidate Reset & Resend Exam Link API
+   */
+  @Post('candidates/reset')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '5. Reset & Resend Candidate Exam Link',
+    description:
+      'Resets a disqualified, locked, or completed candidate exam attempt and generates a fresh Unique Secure Exam URL for retake. Only candidates belonging to the authenticated vendor can be reset.',
+  })
+  @ApiBody({ type: ResetCandidateDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Candidate exam session reset and fresh secure exam link generated.',
+    schema: {
+      example: {
+        success: true,
+        message: 'Candidate session successfully reset and fresh secure exam link generated.',
+        data: {
+          candidateId: 'c3f74389-7ee3-4ca2-ac3b-7af0d74037f2',
+          name: 'Aftab Sk',
+          email: 'aftab@example.com',
+          applicationId: 'APP-2026-001',
+          vendorCandidateId: 'VND-CAND-01',
+          secureToken: 'sec_8c387f549a1d4791e847c20ad412beef',
+          examUrl: 'https://niva.greatcampus.in/banca-rm-assessment-2026?token=sec_8c387f549a1d4791e847c20ad412beef',
+          status: 'NOT_STARTED',
+          emailDispatched: true,
+        },
+      },
+    },
+  })
+  async resetAndResendCandidate(@Req() req: any, @Body() body: ResetCandidateDto) {
+    return this.vendorApiService.resetAndResendCandidate(req.vendor, body);
   }
 }

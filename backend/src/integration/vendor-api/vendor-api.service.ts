@@ -7,6 +7,8 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { EmailService } from '../../email/email.service';
 import * as crypto from 'crypto';
+import * as path from 'path';
+import * as fs from 'fs';
 
 // ─── SYSTEM FIXED CONSTANTS ───────────────────────────────────────────────────
 const FIXED_EXAM_DURATION_MINS = 45;
@@ -575,6 +577,123 @@ export class VendorApiService {
       requestBody: query,
       responseBody: { count: formatted.length },
       itemsCount: formatted.length,
+    });
+
+    return responseData;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 5️⃣ INCOMING API 5: Candidate Reset & Resend Exam Link API
+  // ─────────────────────────────────────────────────────────────────────────────
+  async resetAndResendCandidate(vendor: any, body: any) {
+    this.logger.log(`Vendor [${vendor.vendorCode} - ${vendor.name}] requesting Reset & Resend for candidate.`);
+
+    if (!body || (!body.candidateId && !body.applicationId && !body.vendorCandidateId && !body.email)) {
+      throw new BadRequestException('At least one of "candidateId", "applicationId", "vendorCandidateId", or "email" is required.');
+    }
+
+    const whereOr: any[] = [];
+    if (body.candidateId) whereOr.push({ id: body.candidateId });
+    if (body.applicationId) whereOr.push({ applicationId: body.applicationId }, { referenceId: body.applicationId });
+    if (body.vendorCandidateId) whereOr.push({ vendorCandidateId: body.vendorCandidateId });
+    if (body.email) whereOr.push({ email: body.email.toLowerCase().trim() });
+
+    // Multi-tenant check: Candidate MUST belong to this vendor!
+    const candidate = await this.prisma.candidate.findFirst({
+      where: {
+        vendorId: vendor.id,
+        isDeleted: false,
+        OR: whereOr,
+      },
+      include: {
+        assessment: true,
+        attempts: {
+          include: {
+            screenshots: true,
+          },
+        },
+      },
+    });
+
+    if (!candidate) {
+      throw new NotFoundException('Candidate not found under your vendor account or already deleted.');
+    }
+
+    // Perform attempt wipe and reset
+    const attemptIds = candidate.attempts.map((a) => a.id);
+    if (attemptIds.length > 0) {
+      for (const att of candidate.attempts) {
+        if (att.screenshots && att.screenshots.length > 0) {
+          for (const ss of att.screenshots) {
+            try {
+              if (ss.imageUrl) {
+                const cleanRel = ss.imageUrl.replace(/^\//, '');
+                const filePath = path.join(process.cwd(), cleanRel);
+                if (fs.existsSync(filePath)) {
+                  fs.unlinkSync(filePath);
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+
+      await this.prisma.submission.deleteMany({ where: { attemptId: { in: attemptIds } } });
+      await this.prisma.attemptQuestion.deleteMany({ where: { attemptId: { in: attemptIds } } });
+      await this.prisma.proctoringScreenshot.deleteMany({ where: { attemptId: { in: attemptIds } } });
+      await this.prisma.proctoringLog.deleteMany({ where: { attemptId: { in: attemptIds } } });
+      await this.prisma.examAttempt.deleteMany({ where: { id: { in: attemptIds } } });
+    }
+
+    const newSecureToken = `sec_${crypto.randomBytes(16).toString('hex')}`;
+    const updatedCandidate = await this.prisma.candidate.update({
+      where: { id: candidate.id },
+      data: {
+        status: 'REGISTERED',
+        emailStatus: 'PENDING',
+        emailSentAt: null,
+        secureToken: newSecureToken,
+      },
+      include: { assessment: true },
+    });
+
+    // Send fresh email invitation if enabled
+    let emailDispatched = false;
+    try {
+      const emailRes = await this.emailService.sendCandidateInvitation(candidate.id);
+      emailDispatched = emailRes.success;
+    } catch (err: any) {}
+
+    const frontendBaseUrl = process.env.CANDIDATE_PORTAL_URL || process.env.FRONTEND_CANDIDATE_URL || 'https://niva.greatcampus.in';
+    const assessmentSlug = updatedCandidate.assessment?.slug || updatedCandidate.assessmentId;
+    const examUrl = `${frontendBaseUrl}/${assessmentSlug}?token=${newSecureToken}`;
+
+    const responseData = {
+      success: true,
+      message: 'Candidate session successfully reset and fresh secure exam link generated.',
+      data: {
+        candidateId: updatedCandidate.id,
+        name: updatedCandidate.name,
+        email: updatedCandidate.email,
+        applicationId: updatedCandidate.applicationId || updatedCandidate.referenceId,
+        vendorCandidateId: updatedCandidate.vendorCandidateId,
+        secureToken: newSecureToken,
+        examUrl,
+        status: 'NOT_STARTED',
+        emailDispatched,
+      },
+    };
+
+    await this.recordLog({
+      vendorId: vendor.id,
+      apiType: 'CANDIDATE_RESET',
+      endpoint: '/api/v1/vendor-api/candidates/reset',
+      method: 'POST',
+      status: 'SUCCESS',
+      statusCode: 200,
+      requestBody: body,
+      responseBody: responseData.data,
+      itemsCount: 1,
     });
 
     return responseData;
