@@ -13,6 +13,7 @@ import * as path from 'path';
 // These are fixed for ALL assessments. Admins cannot override them.
 const EXAM_DURATION_MINS = 45;
 const TOTAL_QUESTIONS = 60;
+const MAX_PROCTOR_WARNINGS = 6;
 // ──────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -423,7 +424,7 @@ export class CandidatesService {
         creditConsumed: true,
         durationMinsSnapshot: candidate.assessment.durationMins || EXAM_DURATION_MINS,
         passingPercentageSnapshot: candidate.assessment.passingPercentage || 50.0,
-        maxProctorWarningsSnapshot: candidate.assessment.maxProctorWarnings || 3,
+        maxProctorWarningsSnapshot: candidate.assessment.maxProctorWarnings || MAX_PROCTOR_WARNINGS,
         startedAt: new Date(),
       },
     });
@@ -715,7 +716,7 @@ export class CandidatesService {
       data: { attemptId: attempt.id, eventType, details },
     });
 
-    const maxWarnings = attempt.candidate?.assessment?.maxProctorWarnings || attempt.maxProctorWarningsSnapshot || 3;
+    const maxWarnings = attempt.candidate?.assessment?.maxProctorWarnings || attempt.maxProctorWarningsSnapshot || MAX_PROCTOR_WARNINGS;
     const newWarningCount = isDuplicateBurst ? attempt.warningCount : attempt.warningCount + 1;
     const isTabClose = eventType === 'TAB_CLOSE' || eventType === 'WINDOW_CLOSE';
     const isDisqualified = (newWarningCount >= maxWarnings) || isTabClose;
@@ -1308,7 +1309,7 @@ export class CandidatesService {
       description: data.description,
       durationMins: data.durationMins ? Number(data.durationMins) : 45,
       passingPercentage: data.passingPercentage ? Number(data.passingPercentage) : 50.0,
-      maxProctorWarnings: data.maxProctorWarnings ? Number(data.maxProctorWarnings) : 3,
+      maxProctorWarnings: data.maxProctorWarnings ? Number(data.maxProctorWarnings) : MAX_PROCTOR_WARNINGS,
       status: data.status || 'ACTIVE',
       ...(activeFrom !== null && { activeFrom }),
       ...(activeUntil !== null && { activeUntil }),
@@ -1699,7 +1700,7 @@ export class CandidatesService {
           percentage: latestAttempt.percentage,
           isPassed: latestAttempt.isPassed,
           warningCount: latestAttempt.warningCount,
-          maxProctorWarnings: assessment.maxProctorWarnings || latestAttempt.maxProctorWarningsSnapshot || 3,
+          maxProctorWarnings: assessment.maxProctorWarnings || latestAttempt.maxProctorWarningsSnapshot || MAX_PROCTOR_WARNINGS,
           startedAt: latestAttempt.startedAt,
           submittedAt: latestAttempt.submittedAt,
         } : null,
@@ -2231,7 +2232,7 @@ export class CandidatesService {
         sno: idx + 1,
         name: c.name,
         email: c.email,
-        warnings: att ? `${att.warningCount}/${att.maxProctorWarningsSnapshot || 3}` : '0/3',
+        warnings: att ? `${att.warningCount}/${att.maxProctorWarningsSnapshot || MAX_PROCTOR_WARNINGS}` : `0/${MAX_PROCTOR_WARNINGS}`,
         tabSwitch: tabSwitches,
         fsExit: fsExits,
         faceMissing,

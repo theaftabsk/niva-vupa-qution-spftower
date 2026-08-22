@@ -46,7 +46,7 @@ export default function CandidateTestEngine() {
 
   // Proctoring States
   const [warningCount, setWarningCount] = useState(0);
-  const [maxProctorWarnings, setMaxProctorWarnings] = useState(3);
+  const [maxProctorWarnings, setMaxProctorWarnings] = useState(6);
   const [warningModalMsg, setWarningModalMsg] = useState<string | null>(null);
   const [disqualified, setDisqualified] = useState(false);
 
@@ -83,7 +83,7 @@ export default function CandidateTestEngine() {
         setQuestions(data.questions || []);
         const calculatedTime = data.remainingTimeSec !== undefined ? data.remainingTimeSec : (data.durationMins || 45) * 60;
         setTimeLeftSec(calculatedTime);
-        setMaxProctorWarnings(data.maxProctorWarnings || 3);
+        setMaxProctorWarnings(data.maxProctorWarnings || 6);
         setWarningCount(data.warningCount || 0);
 
         // Pre-fill answers if returning to active session

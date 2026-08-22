@@ -77,7 +77,7 @@ model Assessment {
   description        String?
   durationMins       Int                @default(45)
   passingPercentage  Float              @default(50.0)
-  maxProctorWarnings Int                @default(3)
+  maxProctorWarnings Int                @default(6)
   enableTabSwitch    Boolean            @default(true)
   enableFullscreen   Boolean            @default(true)
   enableCopyPaste    Boolean            @default(true)
@@ -192,7 +192,7 @@ model ExamAttempt {
   status                     String               @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, DISQUALIFIED, EXPIRED
   durationMinsSnapshot       Int                  @default(45)
   passingPercentageSnapshot  Float                @default(50.0)
-  maxProctorWarningsSnapshot Int                  @default(3)
+  maxProctorWarningsSnapshot Int                  @default(6)
   startedAt                  DateTime             @default(now())
   submittedAt                DateTime?
   score                      Float                @default(0)

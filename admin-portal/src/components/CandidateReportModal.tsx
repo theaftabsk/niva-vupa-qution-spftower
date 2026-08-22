@@ -389,7 +389,7 @@ export default function CandidateReportModal({ isOpen, onClose, candidateId, onR
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
                   <span>
-                    Passing Benchmark: <strong className="text-white">{report.assessment.passingPercentage}%</strong>
+                    Exam Format: <strong className="text-white">60 Qs (45 Mins)</strong>
                   </span>
                 </div>
               </div>

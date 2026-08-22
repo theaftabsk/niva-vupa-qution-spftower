@@ -194,7 +194,7 @@ export class AssessmentsService {
       description: data.description || '',
       durationMins: 45,
       passingPercentage: data.passingPercentage !== undefined ? Number(data.passingPercentage) : 50,
-      maxProctorWarnings: data.maxProctorWarnings !== undefined ? Number(data.maxProctorWarnings) : 3,
+      maxProctorWarnings: data.maxProctorWarnings !== undefined ? Number(data.maxProctorWarnings) : 6,
       status: data.status || 'ACTIVE',
       ...(finalActiveFrom !== undefined && { activeFrom: finalActiveFrom }),
       ...(finalActiveUntil !== undefined && { activeUntil: finalActiveUntil }),

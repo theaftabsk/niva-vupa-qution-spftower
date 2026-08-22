@@ -87,7 +87,7 @@ export class VendorApiService {
     const name = body.name.trim();
     // STRICT FIXED CONSTANTS: Always 45 Mins
     const durationMins = FIXED_EXAM_DURATION_MINS;
-    const maxProctorWarnings = Number(body.maxProctorWarnings) || 3;
+    const maxProctorWarnings = Number(body.maxProctorWarnings) || 6;
     const status = body.status ? body.status.toUpperCase() : 'ACTIVE';
 
     const activeFrom = body.activeFrom ? new Date(body.activeFrom) : null;

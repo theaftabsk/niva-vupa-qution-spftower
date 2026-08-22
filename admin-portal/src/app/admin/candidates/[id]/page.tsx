@@ -204,7 +204,7 @@ export default function CandidateDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-cyan-300" />
-            <span>Benchmark: <strong className="text-white">{report.assessment.passingPercentage}%</strong></span>
+            <span>Format: <strong className="text-white">60 Qs (45 Mins)</strong></span>
           </div>
         </div>
       </div>
