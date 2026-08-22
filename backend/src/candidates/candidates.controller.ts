@@ -246,6 +246,7 @@ export class CandidatesController {
 
   @Get('audit-logs/resets')
   async getCandidateResetAuditLogs(
+    @Query('candidateId') candidateId?: string,
     @Query('vendorId') vendorId?: string,
     @Query('candidateSearch') candidateSearch?: string,
     @Query('performedByRole') performedByRole?: string,
@@ -254,6 +255,7 @@ export class CandidatesController {
     @Query('limit') limit?: string,
   ) {
     return this.candidatesService.getCandidateResetAuditLogs({
+      candidateId,
       vendorId,
       candidateSearch,
       performedByRole,

@@ -7,10 +7,11 @@ import {
   ArrowLeft, Users, Mail, CheckCircle2, Clock, ShieldAlert,
   AlertTriangle, Download, Plus, Upload, RefreshCw, Search,
   ExternalLink, Copy, Check, FileSpreadsheet, Send, Lock,
-  Award, XCircle, FileText, RotateCcw, Trash2
+  Award, XCircle, FileText, RotateCcw, Trash2, History
 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/config";
 import CandidateReportModal from "@/components/CandidateReportModal";
+import CandidateResetHistoryModal from "@/components/CandidateResetHistoryModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ToastContainer, { ToastMessage } from "@/components/Toast";
 import * as XLSX from "xlsx";
@@ -48,9 +49,12 @@ export default function AssessmentDashboardPage() {
   const [sendingEmails, setSendingEmails] = useState(false);
   const [emailProgress, setEmailProgress] = useState<any>(null);
 
-  // Selected Candidate for Report Modal
+  // Selected Candidate Report Modal State
   const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Reset & Attempt History Modal State
+  const [selectedHistoryCandidate, setSelectedHistoryCandidate] = useState<{ id: string; name: string } | null>(null);
 
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -683,6 +687,21 @@ export default function AssessmentDashboardPage() {
                         <td style={{ padding: "14px 16px", whiteSpace: "nowrap" }}>
                           <div style={{ fontWeight: 800, color: "#0F172A" }}>{c.name}</div>
                           <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>{c.email} • {c.phone}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                            <button
+                              onClick={() => setSelectedHistoryCandidate({ id: c.id, name: c.name })}
+                              style={{ background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "6px", padding: "1px 6px", fontSize: "10px", fontWeight: 800, color: "#334155", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                              title="Click to view full attempt & reset history logs"
+                            >
+                              <History size={10} color="#0284C7" />
+                              <span>Attempt #{c.totalAttemptsCount || (c.attempts?.length > 0 ? c.attempts.length : 1)}</span>
+                              {c.resetsCount > 0 && (
+                                <span style={{ background: "#FFE4E6", color: "#BE123C", padding: "0 4px", borderRadius: "4px", fontSize: "9px" }}>
+                                  {c.resetsCount} reset
+                                </span>
+                              )}
+                            </button>
+                          </div>
                         </td>
 
                         <td style={{ padding: "14px 16px", fontFamily: "monospace", fontSize: "12px", fontWeight: 700, color: "#334155", whiteSpace: "nowrap" }}>
@@ -758,12 +777,20 @@ export default function AssessmentDashboardPage() {
                                 <Lock size={12} /> Unlock
                               </button>
                             )}
+                            
+                            <button
+                              onClick={() => setSelectedHistoryCandidate({ id: c.id, name: c.name })}
+                              title="View Full Attempt & Reset Audit History"
+                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#F8FAFC", color: "#334155", border: "1px solid #CBD5E1", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                            >
+                              <History size={12} color="#0284C7" /> History
+                            </button>
 
-                            {/* Reset & Re-invite Button */}
+                            {/* Reset Candidate Attempt & Re-invite Button */}
                             <button
                               onClick={() => setResetCandidateTarget({ id: c.id, name: c.name, email: c.email })}
                               title="Reset Candidate Attempt & Resend Invitation (Clean & Send)"
-                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF3C7", color: "#92400E", border: "1px solid #FDE68A", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
+                              style={{ padding: "6px 10px", borderRadius: "8px", background: "#FEF3C7", color: "#92400E", border: "1px solid #FCD34D", fontSize: "11px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px", whiteSpace: "nowrap" }}
                             >
                               <RotateCcw size={12} /> Reset & Send
                             </button>
@@ -1145,6 +1172,16 @@ export default function AssessmentDashboardPage() {
         onConfirm={confirmResetCandidate}
         onCancel={() => { if (!resettingCandidate) setResetCandidateTarget(null); }}
       />
+
+      {/* Candidate Attempt & Reset Audit History Modal */}
+      {selectedHistoryCandidate && (
+        <CandidateResetHistoryModal
+          candidateId={selectedHistoryCandidate.id}
+          candidateName={selectedHistoryCandidate.name}
+          isOpen={!!selectedHistoryCandidate}
+          onClose={() => setSelectedHistoryCandidate(null)}
+        />
+      )}
 
       {/* Modern Floating Toast Notifications */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

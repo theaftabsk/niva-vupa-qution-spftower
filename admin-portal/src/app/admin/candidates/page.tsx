@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import {
   Search, RefreshCw, Lock, Unlock, Trash2, CheckCircle2,
   AlertTriangle, ShieldAlert, Download, Table, FileText, Award,
-  Filter, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet, RotateCcw, Building2
+  Filter, ChevronLeft, ChevronRight, BookOpen, FileSpreadsheet, RotateCcw, Building2, History
 } from "lucide-react";
 import { getApiBaseUrl } from "@/lib/config";
 import CandidateReportModal from "@/components/CandidateReportModal";
+import CandidateResetHistoryModal from "@/components/CandidateResetHistoryModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import ToastContainer, { ToastMessage } from "@/components/Toast";
 
@@ -31,6 +32,9 @@ export default function CandidatesManagementPage() {
   // Modal Report Card State
   const [selectedReportCandidateId, setSelectedReportCandidateId] = useState<string | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // Modal Reset & Attempt History State
+  const [selectedHistoryCandidate, setSelectedHistoryCandidate] = useState<{ id: string; name: string } | null>(null);
 
   // Toast State
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -501,6 +505,21 @@ export default function CandidatesManagementPage() {
                       <td className="py-3.5 px-4">
                         <div className="font-extrabold text-slate-900">{c.name}</div>
                         <div className="text-[11px] text-slate-400">{c.email} • {c.phone}</div>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <button
+                            onClick={() => setSelectedHistoryCandidate({ id: c.id, name: c.name })}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-black bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border border-slate-200 hover:border-blue-300 transition cursor-pointer"
+                            title="Click to view attempt & reset logs"
+                          >
+                            <History size={10} className="text-blue-600" />
+                            <span>Attempt #{c.totalAttemptsCount || (c.attempts?.length > 0 ? c.attempts.length : 1)}</span>
+                            {c.resetsCount > 0 && (
+                              <span className="text-[9px] bg-rose-100 text-rose-700 px-1 rounded font-bold">
+                                {c.resetsCount} reset
+                              </span>
+                            )}
+                          </button>
+                        </div>
                       </td>
 
                       {/* Application ID */}
@@ -645,6 +664,15 @@ export default function CandidatesManagementPage() {
                           )}
 
                           {/* Reset Candidate Attempt & Re-invite Button */}
+                          <button
+                            onClick={() => setSelectedHistoryCandidate({ id: c.id, name: c.name })}
+                            title="View Full Attempt & Reset Audit Logs"
+                            className="px-2 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[11px] rounded-lg border border-slate-200 transition flex items-center space-x-1 cursor-pointer"
+                          >
+                            <History className="w-3.5 h-3.5 text-blue-600" />
+                            <span>History</span>
+                          </button>
+
                           <button
                             onClick={() => setResetCandidateTarget({ id: c.id, name: c.name, email: c.email })}
                             title="Reset Candidate Attempt & Resend Invitation (Clean & Send)"
@@ -932,6 +960,16 @@ export default function CandidatesManagementPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Candidate Attempt & Reset Audit History Modal */}
+      {selectedHistoryCandidate && (
+        <CandidateResetHistoryModal
+          candidateId={selectedHistoryCandidate.id}
+          candidateName={selectedHistoryCandidate.name}
+          isOpen={!!selectedHistoryCandidate}
+          onClose={() => setSelectedHistoryCandidate(null)}
+        />
       )}
 
       {/* Modern Floating Toast Notifications */}

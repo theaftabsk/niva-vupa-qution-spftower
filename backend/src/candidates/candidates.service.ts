@@ -1000,6 +1000,7 @@ export class CandidatesService {
 
   // Retrieve Master Reset & Re-attempt Audit Logs (Admin only)
   async getCandidateResetAuditLogs(query: {
+    candidateId?: string;
     vendorId?: string;
     candidateSearch?: string;
     performedByRole?: string;
@@ -1012,6 +1013,10 @@ export class CandidatesService {
     const skip = (page - 1) * limit;
 
     const where: any = {};
+
+    if (query.candidateId) {
+      where.candidateId = query.candidateId;
+    }
 
     if (query.vendorId && query.vendorId !== 'ALL') {
       where.vendorId = query.vendorId;
