@@ -3,10 +3,33 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
-  BookOpen, Plus, Clock, Link2, Copy, CheckCircle2, Trash2,
-  Edit2, RefreshCw, X, Calendar, AlertCircle, Zap, Users,
-  Eye, EyeOff, ExternalLink, Search, Filter, ChevronLeft, ChevronRight,
-  Building2, ShieldCheck, Terminal
+  BookOpen,
+  Plus,
+  Clock,
+  Link2,
+  Copy,
+  CheckCircle2,
+  Trash2,
+  Edit2,
+  RefreshCw,
+  X,
+  Calendar,
+  AlertCircle,
+  Zap,
+  Users,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  ShieldCheck,
+  Terminal,
+  Activity,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import ToastContainer, { ToastMessage } from "@/components/Toast";
@@ -54,15 +77,41 @@ function getComputedStatus(session: AssessmentSession): "ACTIVE" | "UPCOMING" | 
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; cls: string }> = {
-    ACTIVE:   { label: "Active",   cls: "status-active" },
-    UPCOMING: { label: "Upcoming", cls: "status-upcoming" },
-    EXPIRED:  { label: "Expired",  cls: "status-expired" },
-    INACTIVE: { label: "Inactive", cls: "status-inactive" },
-    DRAFT:    { label: "Draft",    cls: "status-draft" },
-  };
-  const s = map[status] || map["INACTIVE"];
-  return <span className={`session-status-badge ${s.cls}`}>{s.label}</span>;
+  switch (status) {
+    case "ACTIVE":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Active
+        </span>
+      );
+    case "UPCOMING":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200">
+          <Clock size={11} />
+          Upcoming
+        </span>
+      );
+    case "EXPIRED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+          <AlertCircle size={11} />
+          Expired
+        </span>
+      );
+    case "DRAFT":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+          Draft
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+          Inactive
+        </span>
+      );
+  }
 }
 
 function formatDatetimeLocal(iso?: string) {
@@ -73,7 +122,7 @@ function formatDatetimeLocal(iso?: string) {
 }
 
 function formatDisplay(iso?: string | null) {
-  if (!iso) return "Not set";
+  if (!iso) return "Immediately (Open)";
   return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
 }
 
@@ -114,8 +163,8 @@ export default function AdminAssessmentsPage() {
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal]     = useState(false);
-  const [editTarget, setEditTarget]           = useState<AssessmentSession | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<AssessmentSession | null>(null);
 
   // Form
   const emptyForm = {
@@ -128,7 +177,7 @@ export default function AdminAssessmentsPage() {
     maxProctorWarnings: 3,
     status: "ACTIVE",
   };
-  const [form, setForm]     = useState({ ...emptyForm });
+  const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -160,10 +209,16 @@ export default function AdminAssessmentsPage() {
       const res = await fetch(`${getApiBaseUrl()}/api/v1/assessments${queryStr}`, { headers });
       const data = await res.json();
       if (data.success) setSessions(data.assessments || []);
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch {
+      /* silent */
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { loadSessions(); }, [loadSessions]);
+  useEffect(() => {
+    loadSessions();
+  }, [loadSessions]);
 
   const copyLink = (session: AssessmentSession) => {
     const linkToCopy = getDisplayExamLink(session.uniqueCandidateLink);
@@ -190,14 +245,17 @@ export default function AdminAssessmentsPage() {
       activeUntil: formatDatetimeLocal(session.activeUntil),
       passingPercentage: session.passingPercentage,
       maxProctorWarnings: session.maxProctorWarnings,
-      status: (session.status === "INACTIVE" || session.status === "DRAFT") ? session.status : "ACTIVE",
+      status: session.status === "INACTIVE" || session.status === "DRAFT" ? session.status : "ACTIVE",
     });
     setFormError("");
     setShowEditModal(true);
   };
 
   const handleSave = async (isEdit: boolean) => {
-    if (!form.name.trim()) { setFormError("Session name is required."); return; }
+    if (!form.name.trim()) {
+      setFormError("Session name is required.");
+      return;
+    }
     setSaving(true);
     setFormError("");
     try {
@@ -233,7 +291,7 @@ export default function AdminAssessmentsPage() {
       };
       if (isEdit && editTarget) payload.id = editTarget.id;
 
-      const res  = await fetch(`${getApiBaseUrl()}/api/v1/assessments/save`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/v1/assessments/save`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -243,11 +301,17 @@ export default function AdminAssessmentsPage() {
 
       setShowCreateModal(false);
       setShowEditModal(false);
-      addToast("success", isEdit ? "Assessment session updated successfully." : "New assessment session created successfully.", "Success");
+      addToast(
+        "success",
+        isEdit ? "Assessment session updated successfully." : "New assessment session created successfully.",
+        "Success"
+      );
       await loadSessions();
     } catch (err: any) {
       setFormError(err.message || "Failed to save session.");
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const confirmDeleteSession = async () => {
@@ -268,7 +332,11 @@ export default function AdminAssessmentsPage() {
   const handleToggleStatus = async (session: AssessmentSession) => {
     const computed = getComputedStatus(session);
     if (computed === "EXPIRED" && session.status !== "ACTIVE") {
-      addToast("warning", "This assessment session has expired. To activate it, click Edit and set a future 'Until' end date.", "Session Expired");
+      addToast(
+        "warning",
+        "This assessment session has expired. To activate it, click Edit and set a future 'Until' end date.",
+        "Session Expired"
+      );
       openEdit(session);
       return;
     }
@@ -304,7 +372,9 @@ export default function AdminAssessmentsPage() {
       !searchQuery ||
       s.name.toLowerCase().includes(q) ||
       s.slug.toLowerCase().includes(q) ||
-      s.vendorAssignments?.some(va => va.vendorName?.toLowerCase().includes(q) || va.vendorCode?.toLowerCase().includes(q));
+      s.vendorAssignments?.some(
+        (va) => va.vendorName?.toLowerCase().includes(q) || va.vendorCode?.toLowerCase().includes(q)
+      );
 
     const matchesStatus = statusFilter === "ALL" || computed === statusFilter;
     return matchesSearch && matchesStatus;
@@ -313,61 +383,137 @@ export default function AdminAssessmentsPage() {
   const totalPages = Math.ceil(filteredSessions.length / pageSize) || 1;
   const paginatedSessions = filteredSessions.slice((page - 1) * pageSize, page * pageSize);
 
+  // High level metrics
+  const activeSessionsCount = sessions.filter((s) => getComputedStatus(s) === "ACTIVE").length;
+  const totalEnrolledCandidates = sessions.reduce((acc, s) => acc + (s.totalCandidates || 0), 0);
+
   return (
-    <div className="assess-container">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto space-y-6">
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
-      {/* Header */}
-      <div className="assess-header">
+      {/* ── 1. Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1>Exams & Assessments</h1>
-          <p>
-            {userRole === "VENDOR"
-              ? "View and access assessment sessions assigned to your agency"
-              : "Create unique candidate exam links with scheduled access windows"}
-          </p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-blue-600/10 border border-blue-600/20 flex items-center justify-center text-blue-600">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                Exams & Assessment Sessions
+              </h1>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                {userRole === "VENDOR"
+                  ? "View and access assessment sessions assigned to your agency"
+                  : "Configure unique candidate exam links with scheduled access windows"}
+              </p>
+            </div>
+          </div>
         </div>
-        <div className="assess-header-actions">
-          <button className="assess-refresh-btn" onClick={loadSessions} title="Refresh Sessions">
-            <RefreshCw size={15} /> Refresh List
+
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={loadSessions}
+            className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold shadow-2xs transition flex items-center gap-2 cursor-pointer"
+            title="Refresh Sessions List"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin text-blue-600" : ""} />
+            <span>Refresh</span>
           </button>
+
           {userRole !== "VENDOR" && (
-            <button className="assess-create-btn" onClick={openCreate}>
-              <Plus size={16} /> New Assessment Session
+            <button
+              onClick={openCreate}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Plus size={16} />
+              <span>New Assessment Session</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Fixed Exam Info Banner */}
-      <div className="assess-fixed-banner">
-        <div className="assess-fixed-item"><Zap size={15} /> <strong>60 Questions</strong> — Shared Bank</div>
-        <div className="assess-fixed-divider" />
-        <div className="assess-fixed-item"><Clock size={15} /> <strong>45 Mins Default</strong> — Configurable</div>
-        <div className="assess-fixed-divider" />
-        <div className="assess-fixed-item"><BookOpen size={15} /> All sessions generate unique exam URLs</div>
+      {/* ── 2. Top Metric Cards (Responsive Grid) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Sessions */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Sessions</span>
+            <div className="text-2xl font-black text-slate-900 font-mono">{sessions.length}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+            <Layers className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Active Windows */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Windows</span>
+            <div className="text-2xl font-black text-emerald-600 font-mono flex items-center gap-2">
+              <span>{activeSessionsCount}</span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Live
+              </span>
+            </div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <Activity className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Enrolled Candidates */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Enrolled</span>
+            <div className="text-2xl font-black text-slate-900 font-mono">{totalEnrolledCandidates}</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Exam Engine Constant */}
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+          <div className="space-y-1">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Exam Engine</span>
+            <div className="text-sm font-extrabold text-white">60 Qs • 45 Mins</div>
+            <div className="text-[10px] text-blue-300 font-medium">Shared Question Bank</div>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-white/10 text-amber-400 flex items-center justify-center">
+            <Zap className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "12px", background: "#fff", padding: "12px 16px", borderRadius: "14px", border: "1px solid #E2E8F0", marginBottom: "16px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", flex: 1 }}>
-          <div style={{ position: "relative", minWidth: "220px" }}>
-            <Search size={13} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94A3B8" }} />
+      {/* ── 3. Search & Filter Bar ── */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs p-3.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5 flex-1">
+          {/* Search Input */}
+          <div className="relative w-full sm:w-72">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               placeholder="Search assessment, slug, vendor..."
               value={searchQuery}
-              onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
-              style={{ width: "100%", paddingLeft: "30px", paddingRight: "10px", paddingTop: "6px", paddingBottom: "6px", fontSize: "12px", fontWeight: "600", borderRadius: "10px", border: "1px solid #CBD5E1", outline: "none" }}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600"
             />
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "#F8FAFC", border: "1px solid #CBD5E1", borderRadius: "10px", padding: "4px 10px" }}>
-            <Filter size={12} color="#64748B" />
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+            <Filter size={12} className="text-slate-500" />
             <select
               value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              style={{ background: "transparent", border: "none", fontSize: "12px", fontWeight: "700", color: "#334155", outline: "none", cursor: "pointer" }}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="bg-transparent border-none text-xs font-bold text-slate-700 outline-none cursor-pointer"
             >
               <option value="ALL">All Statuses ({sessions.length})</option>
               <option value="ACTIVE">Active</option>
@@ -380,24 +526,19 @@ export default function AdminAssessmentsPage() {
         </div>
 
         {/* Page Size Selector */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "12px", fontWeight: "700", color: "#64748B" }}>Show:</span>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", background: "#F1F5F9", padding: "2px", borderRadius: "8px" }}>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500">Show:</span>
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
             {[25, 50, 100].map((size) => (
               <button
                 key={size}
-                onClick={() => { setPageSize(size); setPage(1); }}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: "11px",
-                  fontWeight: "800",
-                  borderRadius: "6px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: pageSize === size ? "#0F172A" : "transparent",
-                  color: pageSize === size ? "#FFFFFF" : "#475569",
-                  transition: "all 0.15s ease",
+                onClick={() => {
+                  setPageSize(size);
+                  setPage(1);
                 }}
+                className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  pageSize === size ? "bg-white text-blue-600 shadow-2xs" : "text-slate-600 hover:bg-slate-200"
+                }`}
               >
                 {size}
               </button>
@@ -406,180 +547,228 @@ export default function AdminAssessmentsPage() {
         </div>
       </div>
 
-      {/* Session Grid */}
+      {/* ── 4. Main Assessments Content (Responsive Table / Cards) ── */}
       {loading ? (
-        <div className="assess-loading">
-          <div className="assess-spinner"></div>
-          <p>Loading assessment sessions...</p>
+        <div className="py-20 text-center bg-white rounded-2xl border border-slate-200">
+          <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-xs font-bold text-slate-600">Loading assessment sessions...</p>
         </div>
       ) : filteredSessions.length === 0 ? (
-        <div className="assess-empty">
-          <BookOpen size={42} className="assess-empty-icon" />
-          <p>
+        <div className="py-20 text-center bg-white rounded-2xl border border-slate-200 space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+            <BookOpen size={24} />
+          </div>
+          <h3 className="text-sm font-black text-slate-900">No Assessment Sessions Found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto font-medium">
             {userRole === "VENDOR"
               ? "No assessments assigned to your vendor account yet. Please contact HR Administrator."
-              : "No assessment sessions match your search/filter."}
+              : "No assessment sessions match your search or filter criteria."}
           </p>
           {userRole !== "VENDOR" && sessions.length === 0 && (
-            <button className="assess-create-btn" onClick={openCreate} style={{ margin: "16px auto 0" }}>
+            <button
+              onClick={openCreate}
+              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold inline-flex items-center gap-2 hover:bg-blue-700 transition"
+            >
               <Plus size={15} /> Create First Session
             </button>
           )}
         </div>
       ) : (
-        <div className="assess-excel-wrapper" style={{ maxHeight: "560px", overflowY: "auto", border: "1px solid #E2E8F0", borderRadius: "14px", background: "#fff" }}>
-          <table className="assess-excel-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ position: "sticky", top: 0, zIndex: 10, background: "#F8FAFC", borderBottom: "2px solid #E2E8F0" }}>
-              <tr>
-                <th style={{ minWidth: "240px", padding: "12px 16px" }}>Session Details & Creator</th>
-                <th style={{ width: "100px", minWidth: "100px" }}>Status</th>
-                <th style={{ minWidth: "140px" }}>Configuration</th>
-                <th style={{ minWidth: "180px" }}>Access Schedule Window</th>
-                <th style={{ minWidth: "260px" }}>Unique Candidate Link</th>
-                <th style={{ width: "140px", minWidth: "140px", textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedSessions.map((session) => {
-                const computedStatus = getComputedStatus(session);
-                const isCopied = copiedId === session.id;
-                const displayLink = getDisplayExamLink(session.uniqueCandidateLink);
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-700 font-extrabold uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th className="py-3.5 px-4 w-[32%] min-w-[220px]">Session Details & Creator</th>
+                  <th className="py-3.5 px-3 w-[10%] min-w-[90px] text-center">Status</th>
+                  <th className="py-3.5 px-3 w-[16%] min-w-[130px]">Configuration</th>
+                  <th className="py-3.5 px-3 w-[18%] min-w-[150px]">Schedule Window</th>
+                  <th className="py-3.5 px-3 w-[16%] min-w-[140px]">Unique Candidate Link</th>
+                  <th className="py-3.5 px-4 w-[8%] min-w-[100px] text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedSessions.map((session) => {
+                  const computedStatus = getComputedStatus(session);
+                  const isCopied = copiedId === session.id;
+                  const displayLink = getDisplayExamLink(session.uniqueCandidateLink);
 
-                // Determine Creator Origin
-                const isApiCreated = session.vendorAssignments?.[0]?.assignedBy?.startsWith("API:");
-                const vendorName = session.vendorAssignments?.[0]?.vendorName || session.assignedVendors?.[0]?.name;
-                const vendorCode = session.vendorAssignments?.[0]?.vendorCode || session.assignedVendors?.[0]?.vendorCode;
+                  // Determine Creator Origin
+                  const isApiCreated = session.vendorAssignments?.[0]?.assignedBy?.startsWith("API:");
+                  const vendorName = session.vendorAssignments?.[0]?.vendorName || session.assignedVendors?.[0]?.name;
+                  const vendorCode = session.vendorAssignments?.[0]?.vendorCode || session.assignedVendors?.[0]?.vendorCode;
 
-                return (
-                  <tr key={session.id} className={`assess-excel-row assess-excel-row--${computedStatus.toLowerCase()}`}>
-                    
-                    {/* Col 1: Session Name & Creator Origin */}
-                    <td style={{ padding: "12px 16px" }}>
-                      <Link href={`/admin/assessments/${session.id}`} style={{ textDecoration: "none" }}>
-                        <div className="excel-session-name" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#003F72", cursor: "pointer", fontWeight: "800" }}>
-                          {session.name}
-                          <ExternalLink size={12} color="#00AEEF" />
-                        </div>
-                      </Link>
-                      
-                      {/* Creator Badge & Timestamp */}
-                      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                        {isApiCreated ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#F3E8FF", color: "#7E22CE", border: "1px solid #D8B4FE" }}>
-                            <Terminal size={10} /> API: {vendorName || vendorCode || "Vendor"}
-                          </span>
-                        ) : vendorName ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE" }}>
-                            <Building2 size={10} /> Vendor: {vendorName}
-                          </span>
-                        ) : (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: "3px", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: "800", background: "#F1F5F9", color: "#334155", border: "1px solid #CBD5E1" }}>
-                            <ShieldCheck size={10} /> Super Admin
-                          </span>
-                        )}
-
-                        <span style={{ fontSize: "10px", color: "#94A3B8", fontWeight: "600" }}>
-                          • Created: {new Date(session.createdAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
-                        </span>
-                      </div>
-
-                      {session.description && <div className="excel-session-desc" style={{ marginTop: "4px", fontSize: "11px", color: "#64748B" }}>{session.description}</div>}
-                    </td>
-
-                    {/* Col 2: Status */}
-                    <td>
-                      <StatusBadge status={computedStatus} />
-                    </td>
-
-                    {/* Col 3: Configuration Specs */}
-                    <td>
-                      <div className="excel-specs">
-                        <span className="excel-spec-tag"><BookOpen size={12} /> {TOTAL_QUESTIONS} Qs</span>
-                        <span className="excel-spec-tag"><Clock size={12} /> {session.durationMins || EXAM_DURATION_MINS} Mins</span>
-                        <span className="excel-spec-tag"><Users size={12} /> {session.totalCandidates} Users</span>
-                      </div>
-                    </td>
-
-                    {/* Col 4: Active Schedule Window */}
-                    <td>
-                      <div className="excel-window-box">
-                        <div><span className="excel-window-lbl">From:</span> {formatDisplay(session.activeFrom)}</div>
-                        <div><span className="excel-window-lbl">Until:</span> {formatDisplay(session.activeUntil)}</div>
-                      </div>
-                    </td>
-
-                    {/* Col 5: Candidate Exam Link */}
-                    <td>
-                      <div className="excel-link-cell">
-                        <div className="excel-link-box" title={displayLink}>
-                          <Link2 size={12} className="text-blue-600 flex-shrink-0" />
-                          <span className="excel-link-text">{displayLink}</span>
-                        </div>
-                        <button
-                          className={`excel-copy-btn ${isCopied ? "excel-copy-btn--copied" : ""}`}
-                          onClick={() => copyLink(session)}
+                  return (
+                    <tr key={session.id} className="hover:bg-blue-50/20 transition-colors group">
+                      {/* Col 1: Session Name & Creator */}
+                      <td className="py-3.5 px-4">
+                        <Link
+                          href={`/admin/assessments/${session.id}`}
+                          className="inline-flex items-center gap-1.5 font-extrabold text-slate-900 hover:text-blue-600 transition group-hover:underline"
                         >
-                          {isCopied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
-                          {isCopied ? "Copied" : "Copy"}
-                        </button>
-                      </div>
-                    </td>
-
-                    {/* Col 6: Actions */}
-                    <td>
-                      <div className="excel-actions">
-                        <Link href={`/admin/assessments/${session.id}`} className="excel-act-btn excel-act-edit" title="Open Assessment Dashboard" style={{ textDecoration: "none", background: "#EFF6FF", color: "#00AEEF", borderColor: "#BFDBFE" }}>
-                          <ExternalLink size={13} />
+                          <span className="text-xs sm:text-sm font-bold tracking-tight">{session.name}</span>
+                          <ExternalLink size={12} className="text-blue-500 opacity-80 shrink-0" />
                         </Link>
-                        {userRole !== "VENDOR" && (
-                          <>
-                            <button className="excel-act-btn excel-act-edit" onClick={() => openEdit(session)} title="Edit Session">
-                              <Edit2 size={13} />
-                            </button>
-                            {computedStatus !== "EXPIRED" && (
-                              <button
-                                className={`excel-act-btn ${session.status === "ACTIVE" ? "excel-act-deactivate" : "excel-act-activate"}`}
-                                onClick={() => handleToggleStatus(session)}
-                                title={session.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                              >
-                                {session.status === "ACTIVE" ? <EyeOff size={13} /> : <Eye size={13} />}
-                              </button>
-                            )}
-                            <button className="excel-act-btn excel-act-delete" onClick={() => setDeleteTarget(session)} title="Delete Session">
-                              <Trash2 size={13} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
 
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {isApiCreated ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-purple-50 text-purple-700 border border-purple-200">
+                              <Terminal size={10} /> API: {vendorName || vendorCode || "Vendor"}
+                            </span>
+                          ) : vendorName ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-blue-50 text-blue-700 border border-blue-200">
+                              <Building2 size={10} /> Vendor: {vendorName}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                              <ShieldCheck size={10} /> Super Admin
+                            </span>
+                          )}
+
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            • Created {new Date(session.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+
+                        {session.description && (
+                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-1 font-normal">
+                            {session.description}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Col 2: Status */}
+                      <td className="py-3.5 px-3 text-center">
+                        <StatusBadge status={computedStatus} />
+                      </td>
+
+                      {/* Col 3: Configuration */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-extrabold border border-slate-200">
+                            <BookOpen size={10} /> {TOTAL_QUESTIONS} Qs
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-extrabold border border-slate-200">
+                            <Clock size={10} /> {session.durationMins || EXAM_DURATION_MINS} Mins
+                          </span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-extrabold border border-purple-200">
+                            <Users size={10} /> {session.totalCandidates} Users
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Col 4: Schedule Window */}
+                      <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="text-slate-400 text-[10px] font-bold">From:</span>
+                            <span className="font-semibold text-slate-700">{formatDisplay(session.activeFrom)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-[11px]">
+                            <span className="text-slate-400 text-[10px] font-bold">Until:</span>
+                            <span className="font-semibold text-slate-700">{formatDisplay(session.activeUntil)}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Col 5: Unique Candidate Link */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-1.5 max-w-[200px]">
+                          <input
+                            readOnly
+                            value={displayLink}
+                            title={displayLink}
+                            className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-mono text-slate-600 truncate focus:outline-none select-all"
+                          />
+                          <button
+                            onClick={() => copyLink(session)}
+                            className={`p-1.5 rounded-lg border text-xs font-bold transition flex items-center gap-1 shrink-0 cursor-pointer ${
+                              isCopied
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-white text-slate-600 hover:text-slate-900 border-slate-200 hover:bg-slate-100"
+                            }`}
+                            title="Copy Candidate Link"
+                          >
+                            {isCopied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* Col 6: Actions */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/admin/assessments/${session.id}`}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition cursor-pointer"
+                            title="Open Assessment Dashboard"
+                          >
+                            <ExternalLink size={13} />
+                          </Link>
+
+                          {userRole !== "VENDOR" && (
+                            <>
+                              <button
+                                onClick={() => openEdit(session)}
+                                className="p-1.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition cursor-pointer"
+                                title="Edit Session"
+                              >
+                                <Edit2 size={13} />
+                              </button>
+
+                              {computedStatus !== "EXPIRED" && (
+                                <button
+                                  onClick={() => handleToggleStatus(session)}
+                                  className={`p-1.5 rounded-lg border transition cursor-pointer ${
+                                    session.status === "ACTIVE"
+                                      ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
+                                      : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                  }`}
+                                  title={session.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                >
+                                  {session.status === "ACTIVE" ? <EyeOff size={13} /> : <Eye size={13} />}
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => setDeleteTarget(session)}
+                                className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 transition cursor-pointer"
+                                title="Delete Session"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination Footer */}
           {filteredSessions.length > 0 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#F8FAFC", borderTop: "1px solid #E2E8F0" }}>
-              <span style={{ fontSize: "12px", fontWeight: "600", color: "#64748B" }}>
-                Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, filteredSessions.length)} of {filteredSessions.length} sessions
+            <div className="p-3.5 border-t border-slate-200 flex items-center justify-between bg-slate-50/70">
+              <span className="text-xs text-slate-500 font-semibold">
+                Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, filteredSessions.length)} of{" "}
+                {filteredSessions.length} sessions
               </span>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#fff", cursor: page === 1 ? "not-allowed" : "pointer", opacity: page === 1 ? 0.4 : 1 }}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
                 </button>
-                <span style={{ fontSize: "12px", fontWeight: "800", color: "#1E293B", padding: "0 8px" }}>
+                <span className="px-3 py-1 text-xs font-bold text-slate-700">
                   Page {page} of {totalPages}
                 </span>
                 <button
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page >= totalPages}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", borderRadius: "8px", border: "1px solid #CBD5E1", background: "#fff", cursor: page >= totalPages ? "not-allowed" : "pointer", opacity: page >= totalPages ? 0.4 : 1 }}
+                  className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
                 >
                   <ChevronRight size={14} />
                 </button>
@@ -589,256 +778,145 @@ export default function AdminAssessmentsPage() {
         </div>
       )}
 
-      {/* CREATE / EDIT MODAL */}
+      {/* ── 5. Create / Edit Assessment Modal ── */}
       {(showCreateModal || showEditModal) && (
-        <div className="assess-modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) { setShowCreateModal(false); setShowEditModal(false); }}}>
-          <div className="assess-modal">
-            <div className="assess-modal-header">
-              <h2>{showCreateModal ? "Create Assessment Session" : "Edit Session"}</h2>
-              <button className="assess-modal-close" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}>
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowCreateModal(false);
+              setShowEditModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h2 className="text-base font-extrabold text-slate-900">
+                {showCreateModal ? "Create Assessment Session" : "Edit Assessment Session"}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setShowEditModal(false);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Banner */}
-            <div className="assess-modal-fixed-info">
-              <Zap size={14} /> Shared Question Bank · <strong>60 Questions</strong> per candidate attempt
+            {/* Standard constant info banner */}
+            <div className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold flex items-center gap-2">
+              <Zap size={14} className="text-blue-600" />
+              <span>
+                Shared Question Bank · <strong>60 Questions</strong> • <strong>45 Mins</strong> Duration
+              </span>
             </div>
 
-            <div className="assess-modal-body">
-              {formError && (
-                <div className="assess-form-error">
-                  <AlertCircle size={15} /> {formError}
-                </div>
-              )}
+            {formError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-700 flex items-center gap-2">
+                <AlertCircle size={15} /> {formError}
+              </div>
+            )}
 
-              <div className="assess-form-group">
-                <label>Session Title / Role *</label>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 mb-1">Session Title / Role *</label>
                 <input
                   type="text"
                   placeholder="e.g. Agency Unit Manager & ARM Banca Assessment"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="assess-form-input font-bold"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
-              <div className="assess-form-group">
-                <label>Description (optional)</label>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Description (optional)</label>
                 <input
                   type="text"
                   placeholder="Brief note for candidates or internal record"
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="assess-form-input"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
-              <div className="assess-form-row">
-                <div className="assess-form-group">
-                  <label><Calendar size={13} /> Active From (optional)</label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <Calendar size={12} className="inline mr-1 text-slate-400" />
+                    Active From (optional)
+                  </label>
                   <input
                     type="datetime-local"
                     value={form.activeFrom}
                     onChange={(e) => setForm({ ...form, activeFrom: e.target.value })}
-                    className="assess-form-input"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
                   />
-                  <span className="assess-form-hint">Leave blank to start immediately</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Leave blank to start immediately</span>
                 </div>
 
-                <div className="assess-form-group">
-                  <label><Calendar size={13} /> Active Until (optional)</label>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <Calendar size={12} className="inline mr-1 text-slate-400" />
+                    Active Until (optional)
+                  </label>
                   <input
                     type="datetime-local"
                     value={form.activeUntil}
                     onChange={(e) => setForm({ ...form, activeUntil: e.target.value })}
-                    className="assess-form-input"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
                   />
-                  <span className="assess-form-hint">Leave blank for no expiration</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">Leave blank for no expiration</span>
                 </div>
-              </div>
-
-              <div className="assess-form-row assess-form-row--3">
-                <div className="assess-form-group">
-                  <label><Clock size={13} /> Duration (Mins)</label>
-                  <input
-                    type="number"
-                    value={45}
-                    disabled
-                    readOnly
-                    className="assess-form-input font-bold bg-slate-100 cursor-not-allowed opacity-90"
-                  />
-                  <span className="assess-form-hint text-[10px] text-emerald-600 font-bold">Fixed 45 Mins (60 Questions)</span>
-                </div>
-
-                <div className="assess-form-group">
-                  <label>Passing %</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={form.passingPercentage}
-                    onChange={(e) => setForm({ ...form, passingPercentage: Number(e.target.value) })}
-                    className="assess-form-input"
-                  />
-                </div>
-
-                <div className="assess-form-group">
-                  <label>Max Warnings</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={form.maxProctorWarnings}
-                    onChange={(e) => setForm({ ...form, maxProctorWarnings: Number(e.target.value) })}
-                    className="assess-form-input"
-                  />
-                </div>
-              </div>
-
-              <div className="assess-form-group">
-                <label>Status</label>
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
-                  className="assess-form-input font-bold text-blue-600"
-                >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="DRAFT">DRAFT</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                </select>
               </div>
             </div>
 
-            <div className="assess-modal-footer">
-              <button className="assess-modal-cancel" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setShowEditModal(false);
+                }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+              >
                 Cancel
               </button>
               <button
-                className="assess-modal-save"
-                onClick={() => handleSave(showEditModal)}
+                type="button"
                 disabled={saving}
+                onClick={() => handleSave(showEditModal)}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                {saving ? "Saving..." : showCreateModal ? "Create Session" : "Save Changes"}
+                {saving ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <CheckCircle2 size={14} />
+                )}
+                <span>{saving ? "Saving..." : showEditModal ? "Update Session" : "Create Session"}</span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modern Confirm Delete Modal */}
+      {/* ── 6. Confirm Delete Modal ── */}
       <ConfirmModal
         isOpen={!!deleteTarget}
         title="Delete Assessment Session"
-        message={`Are you sure you want to permanently delete '${deleteTarget?.name}'? This will also remove all candidate records and exam attempts associated with this session.`}
+        message={`Are you sure you want to delete '${deleteTarget?.name}'? Candidates already registered under this session may lose access.`}
         confirmText="Delete Session"
         cancelText="Cancel"
         isDanger={true}
         loading={deleting}
         onConfirm={confirmDeleteSession}
-        onCancel={() => { if (!deleting) setDeleteTarget(null); }}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
       />
-
-      {/* Floating Modern Toast Alerts */}
-      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      <style>{`
-        .assess-page { padding: 28px 36px; width: 100%; max-width: 100%; margin: 0; background-color: #f8fafc; min-height: calc(100vh - 64px); box-sizing: border-box; }
-        
-        .assess-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; gap: 16px; flex-wrap: wrap; width: 100%; }
-        .assess-header-left { display: flex; align-items: center; gap: 14px; }
-        .assess-header-icon { width: 44px; height: 44px; border-radius: 12px; background: #2563eb; display: flex; align-items: center; justify-content: center; color: #ffffff; flex-shrink: 0; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
-        .assess-title { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0; tracking: -0.02em; }
-        .assess-subtitle { font-size: 0.84rem; color: #64748b; margin-top: 2px; font-weight: 500; }
-        .assess-header-actions { display: flex; gap: 10px; align-items: center; }
-        .assess-refresh-btn { background: #ffffff; border: 1px solid #cbd5e1; color: #334155; border-radius: 10px; padding: 9px 16px; font-size: 0.84rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .assess-refresh-btn:hover { background: #f1f5f9; border-color: #94a3b8; color: #0f172a; }
-        .assess-create-btn { background: #2563eb; border: none; color: #ffffff; border-radius: 10px; padding: 9px 18px; font-size: 0.86rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 7px; transition: background 0.2s; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
-        .assess-create-btn:hover { background: #1d4ed8; }
-
-        .assess-fixed-banner { display: flex; align-items: center; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 14px; padding: 12px 20px; margin-bottom: 24px; flex-wrap: wrap; gap: 10px; width: 100%; box-sizing: border-box; }
-        .assess-fixed-item { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; color: #1d4ed8; font-weight: 600; }
-        .assess-fixed-divider { width: 1px; height: 16px; background: #93c5fd; margin: 0 8px; }
-
-        .assess-loading { text-align: center; padding: 60px; color: #64748b; font-size: 0.9rem; font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 12px; width: 100%; }
-        .assess-spinner { width: 28px; height: 28px; border: 3px solid #2563eb; border-top-color: transparent; border-radius: 50%; animation: assessSpin 0.8s linear infinite; }
-        @keyframes assessSpin { to { transform: rotate(360deg); } }
-
-        .assess-empty { text-align: center; padding: 80px 20px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; color: #64748b; width: 100%; box-sizing: border-box; }
-        .assess-empty-icon { margin: 0 auto 12px; color: #94a3b8; }
-
-        .assess-excel-wrapper { width: 100%; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 14px; overflow-x: auto; -webkit-overflow-scrolling: touch; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .assess-excel-table { width: 100%; min-width: 1050px; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
-        .assess-excel-table th { background: #f1f5f9; color: #334155; font-size: 0.76rem; font-weight: 800; text-transform: uppercase; padding: 14px 16px; border-bottom: 2px solid #cbd5e1; letter-spacing: 0.5px; white-space: nowrap; }
-        .assess-excel-table td { padding: 14px 16px; vertical-align: middle; border-bottom: 1px solid #e2e8f0; }
-        .assess-excel-row { transition: background 0.15s; }
-        .assess-excel-row:hover { background: #f8fafc; }
-        .assess-excel-row--expired { opacity: 0.85; }
-
-        .excel-session-name { font-weight: 800; color: #0f172a; font-size: 0.95rem; }
-        .excel-session-desc { font-size: 0.76rem; color: #64748b; font-weight: 500; margin-top: 3px; max-width: 320px; line-height: 1.4; }
-
-        .excel-specs { display: flex; flex-wrap: wrap; gap: 6px; }
-        .excel-spec-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; background: #f1f5f9; color: #334155; padding: 4px 9px; border-radius: 6px; border: 1px solid #cbd5e1; white-space: nowrap; }
-
-        .excel-window-box { font-size: 0.78rem; display: flex; flex-direction: column; gap: 3px; color: #0f172a; font-weight: 600; }
-        .excel-window-lbl { color: #64748b; font-weight: 500; font-size: 0.75rem; }
-
-        .excel-link-cell { display: flex; align-items: center; gap: 8px; }
-        .excel-link-box { display: flex; align-items: center; gap: 6px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; font-family: monospace; font-size: 0.75rem; color: #1e293b; font-weight: 600; overflow: hidden; flex: 1; min-width: 0; max-width: 300px; }
-        .excel-link-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .excel-copy-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 8px; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; cursor: pointer; transition: all 0.2s; white-space: nowrap; flex-shrink: 0; }
-        .excel-copy-btn:hover { background: #dbeafe; }
-        .excel-copy-btn--copied { border-color: #86efac; background: #f0fdf4; color: #166534; }
-
-        .excel-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 130px; }
-        .excel-act-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; }
-        .excel-act-edit       { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
-        .excel-act-edit:hover { background: #dbeafe; }
-        .excel-act-deactivate       { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-        .excel-act-deactivate:hover { background: #fde68a; }
-        .excel-act-activate       { background: #dcfce7; color: #166534; border-color: #86efac; }
-        .excel-act-activate:hover { background: #bbf7d0; }
-        .excel-act-delete       { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
-        .excel-act-delete:hover { background: #fecaca; }
-        .assess-action-btn { display: flex; align-items: center; gap: 5px; font-size: 0.78rem; font-weight: 700; padding: 7px 13px; border-radius: 9px; border: 1px solid transparent; cursor: pointer; transition: all 0.2s; }
-        .assess-action-btn--edit       { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
-        .assess-action-btn--edit:hover { background: #dbeafe; }
-        .assess-action-btn--deactivate       { background: #fef3c7; border-color: #fde68a; color: #92400e; }
-        .assess-action-btn--deactivate:hover { background: #fde68a; }
-        .assess-action-btn--activate       { background: #dcfce7; border-color: #86efac; color: #166534; }
-        .assess-action-btn--activate:hover { background: #bbf7d0; }
-        .assess-action-btn--delete       { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
-        .assess-action-btn--delete:hover { background: #fecaca; }
-
-        /* Modal */
-        .assess-modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
-        .assess-modal { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; width: 100%; max-width: 540px; max-height: 92vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); }
-        .assess-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #e2e8f0; }
-        .assess-modal-header h2 { font-size: 1.1rem; font-weight: 800; color: #0f172a; margin: 0; }
-        .assess-modal-close { background: #f1f5f9; border: none; color: #64748b; cursor: pointer; padding: 5px; border-radius: 8px; display: flex; align-items: center; }
-        .assess-modal-close:hover { color: #0f172a; background: #e2e8f0; }
-        .assess-modal-fixed-info { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: #eff6ff; border-bottom: 1px solid #bfdbfe; font-size: 0.8rem; color: #1d4ed8; font-weight: 600; }
-        .assess-modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
-        .assess-form-group { display: flex; flex-direction: column; gap: 4px; }
-        .assess-form-group label { font-size: 0.78rem; font-weight: 700; color: #475569; display: flex; align-items: center; gap: 5px; }
-        .assess-form-input { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 9px; padding: 8px 12px; color: #0f172a; font-size: 0.85rem; font-weight: 500; outline: none; transition: border-color 0.2s, box-shadow 0.2s; width: 100%; box-sizing: border-box; }
-        .assess-form-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-        .assess-form-hint { font-size: 0.72rem; color: #64748b; font-weight: 500; }
-        .assess-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .assess-form-row--3 { grid-template-columns: 1fr 1fr 1fr; }
-        .assess-form-error { display: flex; align-items: center; gap: 8px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 9px 12px; font-size: 0.8rem; color: #dc2626; font-weight: 600; }
-        .assess-modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid #e2e8f0; background: #f8fafc; border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
-        .assess-modal-cancel { background: #ffffff; border: 1px solid #cbd5e1; color: #475569; border-radius: 9px; padding: 8px 16px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-        .assess-modal-save { background: #2563eb; border: none; color: #ffffff; border-radius: 9px; padding: 8px 20px; font-size: 0.85rem; font-weight: 700; cursor: pointer; box-shadow: 0 2px 6px rgba(37,99,235,0.3); }
-        .assess-modal-save:hover { background: #1d4ed8; }
-        .assess-modal-save:disabled { opacity: 0.6; cursor: not-allowed; }
-        
-        @media (max-width: 600px) {
-          .assess-form-row { grid-template-columns: 1fr; }
-          .assess-grid { grid-template-columns: 1fr; }
-        }
-      `}</style>
     </div>
   );
 }
