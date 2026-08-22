@@ -244,9 +244,41 @@ export class CandidatesController {
     return this.candidatesService.saveCandidateRemarks(id, body.adminId || 'admin', body.remark);
   }
 
+  @Get('audit-logs/resets')
+  async getCandidateResetAuditLogs(
+    @Query('vendorId') vendorId?: string,
+    @Query('candidateSearch') candidateSearch?: string,
+    @Query('performedByRole') performedByRole?: string,
+    @Query('reasonCode') reasonCode?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.candidatesService.getCandidateResetAuditLogs({
+      vendorId,
+      candidateSearch,
+      performedByRole,
+      reasonCode,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 25,
+    });
+  }
+
+  @Get(':id/timeline')
+  async getCandidateTimeline(@Param('id') id: string) {
+    return this.candidatesService.getCandidateTimelineHistory(id);
+  }
+
   @Post(':id/reset')
-  async resetCandidate(@Param('id') id: string) {
-    const result = await this.candidatesService.resetCandidate(id);
+  async resetCandidate(
+    @Param('id') id: string,
+    @Body() body?: {
+      performedBy?: string;
+      performedByRole?: string;
+      reasonCode?: string;
+      reasonText?: string;
+    },
+  ) {
+    const result = await this.candidatesService.resetCandidate(id, body);
     return result;
   }
 

@@ -48,6 +48,8 @@ export default function CandidatesManagementPage() {
   // Reset Candidate Attempt Modal State
   const [resetCandidateTarget, setResetCandidateTarget] = useState<{ id: string; name: string; email: string } | null>(null);
   const [resettingCandidate, setResettingCandidate] = useState(false);
+  const [resetReasonCode, setResetReasonCode] = useState("DISQUALIFICATION_RECOVERY");
+  const [resetReasonText, setResetReasonText] = useState("");
 
   // Assign Vendor Modal State
   const [assignCandidateTarget, setAssignCandidateTarget] = useState<any | null>(null);
@@ -192,17 +194,37 @@ export default function CandidatesManagementPage() {
     setResettingCandidate(true);
     try {
       const baseUrl = getApiBaseUrl();
+      const userStr = localStorage.getItem("banca_admin_user");
+      let activeName = "HR Administrator";
+      let activeRole = "ADMIN";
+      if (userStr) {
+        try {
+          const u = JSON.parse(userStr);
+          activeName = u.name || "Administrator";
+          activeRole = u.role || "ADMIN";
+        } catch {}
+      }
+
       const res = await fetch(`${baseUrl}/api/v1/candidates/${resetCandidateTarget.id}/reset`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          performedBy: `${activeRole}:${activeName}`,
+          performedByRole: activeRole,
+          reasonCode: resetReasonCode,
+          reasonText: resetReasonCode === "OTHER" ? resetReasonText : undefined,
+        }),
       });
       const data = await res.json();
       if (data.success) {
         addToast(
           "success",
-          data.message || `Candidate '${resetCandidateTarget.name}' exam attempt wiped and re-invited.`,
+          data.message || `Candidate '${resetCandidateTarget.name}' exam attempt wiped, fresh link generated and logged.`,
           "Exam Reset & Re-invited"
         );
         setResetCandidateTarget(null);
+        setResetReasonCode("DISQUALIFICATION_RECOVERY");
+        setResetReasonText("");
         await loadData();
       } else {
         addToast("error", data.message || "Failed to reset candidate attempt.", "Reset Error");
@@ -706,18 +728,144 @@ export default function CandidatesManagementPage() {
         onCancel={() => { if (!deletingCandidate) setDeleteCandidateTarget(null); }}
       />
 
-      {/* Modern Confirm Reset Candidate Attempt & Re-invite Modal */}
-      <ConfirmModal
-        isOpen={!!resetCandidateTarget}
-        title="Reset Exam Attempt & Re-invite Candidate"
-        message={`Are you sure you want to completely reset ${resetCandidateTarget?.name}'s exam? All previous attempts, answers, score marks, and security warnings will be permanently wiped. The candidate will remain registered and receive a fresh invitation to take the 60-question exam from scratch.`}
-        confirmText="Confirm Reset & Re-invite"
-        cancelText="Cancel"
-        isDanger={true}
-        loading={resettingCandidate}
-        onConfirm={confirmResetCandidate}
-        onCancel={() => { if (!resettingCandidate) setResetCandidateTarget(null); }}
-      />
+      {/* 🔄 Interactive Reset Exam Attempt & Select Reason Modal */}
+      {resetCandidateTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-150 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                  <RotateCcw size={18} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-slate-900">Reset Exam & Resend Link</h3>
+                  <p className="text-xs text-slate-500 font-medium">Select reason trigger for audit log</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { if (!resettingCandidate) setResetCandidateTarget(null); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="font-extrabold text-slate-900">{resetCandidateTarget.name}</span>
+                <span className="font-mono text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  {resetCandidateTarget.email}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-relaxed pt-1">
+                Wipes past exam attempts, scores, and proctoring warnings (resets warning count to 0). Generates a fresh secure exam URL and sends a new invitation email.
+              </p>
+            </div>
+
+            {/* Reason & Trigger Selection */}
+            <div className="space-y-2">
+              <label className="block text-xs font-black text-slate-700 uppercase tracking-wider">
+                Select Reason & Trigger *
+              </label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {[
+                  {
+                    code: "DISQUALIFICATION_RECOVERY",
+                    label: "Disqualification Recovery (3 Warnings / Tab Switches)",
+                    desc: "Proctoring violations reset after verification",
+                  },
+                  {
+                    code: "TECHNICAL_GLITCH",
+                    label: "Technical / Network / Browser Interruption",
+                    desc: "Power cut, system crash, or browser freeze",
+                  },
+                  {
+                    code: "EXPIRED_WINDOW",
+                    label: "Assessment Window Expired / Re-invite Request",
+                    desc: "Candidate could not take test before expiration",
+                  },
+                  {
+                    code: "RETAKE_APPROVAL",
+                    label: "Management / Vendor Retake Approval",
+                    desc: "Official approval for a second chance attempt",
+                  },
+                  {
+                    code: "TESTING_VERIFICATION",
+                    label: "Internal Testing & QA Verification",
+                    desc: "Platform validation or test simulation",
+                  },
+                  {
+                    code: "OTHER",
+                    label: "Other / Custom Reason",
+                    desc: "Provide custom notes below",
+                  },
+                ].map((r) => (
+                  <label
+                    key={r.code}
+                    onClick={() => setResetReasonCode(r.code)}
+                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                      resetReasonCode === r.code
+                        ? "bg-blue-50/70 border-blue-500 text-blue-950 font-bold shadow-2xs"
+                        : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700 font-medium"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="resetReason"
+                      value={r.code}
+                      checked={resetReasonCode === r.code}
+                      onChange={() => setResetReasonCode(r.code)}
+                      className="mt-0.5 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="space-y-0.5">
+                      <div className="text-xs">{r.label}</div>
+                      <div className="text-[10px] text-slate-400">{r.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Notes input if OTHER is selected */}
+            {resetReasonCode === "OTHER" && (
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Custom Notes / Reason *</label>
+                <textarea
+                  rows={2}
+                  placeholder="Enter detailed reason for candidate session reset..."
+                  value={resetReasonText}
+                  onChange={(e) => setResetReasonText(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={resettingCandidate}
+                onClick={() => setResetCandidateTarget(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={resettingCandidate || (resetReasonCode === "OTHER" && !resetReasonText.trim())}
+                onClick={confirmResetCandidate}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {resettingCandidate ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                ) : (
+                  <RotateCcw size={14} />
+                )}
+                <span>{resettingCandidate ? "Resetting..." : "Confirm Reset & Log"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Assign Candidate to Vendor Modal */}
       {assignCandidateTarget && (

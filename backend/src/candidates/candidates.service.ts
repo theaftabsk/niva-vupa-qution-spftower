@@ -833,20 +833,36 @@ export class CandidatesService {
     };
   }
 
-  // Full Reset Candidate Attempt & Re-invite (Clean & Send)
-  async resetCandidate(id: string) {
+  // Full Reset Candidate Attempt & Re-invite (Clean & Send) with Audit Logging
+  async resetCandidate(
+    id: string,
+    options?: {
+      performedBy?: string;
+      performedByRole?: string;
+      reasonCode?: string;
+      reasonText?: string;
+    },
+  ) {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
       include: {
         assessment: true,
+        vendor: true,
         attempts: {
           include: {
             screenshots: true,
           },
+          orderBy: { startedAt: 'desc' },
         },
       },
     });
     if (!candidate) throw new NotFoundException('Candidate not found.');
+
+    const previousAttempt = candidate.attempts[0] || null;
+    const previousStatus = previousAttempt ? previousAttempt.status : candidate.status;
+    const previousScore = previousAttempt ? previousAttempt.score : null;
+    const previousWarnings = previousAttempt ? previousAttempt.warningCount : null;
+    const currentAttemptNumber = candidate.totalAttemptsCount || (candidate.attempts.length > 0 ? candidate.attempts.length : 1);
 
     const attemptIds = candidate.attempts.map((a) => a.id);
 
@@ -898,9 +914,9 @@ export class CandidatesService {
     }
 
     // Generate fresh secure token
-    const newSecureToken = crypto.randomUUID();
+    const newSecureToken = `sec_${crypto.randomBytes(16).toString('hex')}`;
 
-    // Reset candidate profile to REGISTERED
+    // Reset candidate profile to REGISTERED & increment resetsCount
     const updatedCandidate = await this.prisma.candidate.update({
       where: { id },
       data: {
@@ -908,8 +924,9 @@ export class CandidatesService {
         emailStatus: 'PENDING',
         emailSentAt: null,
         secureToken: newSecureToken,
+        resetsCount: (candidate.resetsCount || 0) + 1,
       },
-      include: { assessment: true },
+      include: { assessment: true, vendor: true },
     });
 
     // Automatically attempt to dispatch fresh invitation email if SMTP is configured
@@ -920,6 +937,48 @@ export class CandidatesService {
       this.logger.warn(`Could not send re-invitation email: ${err.message}`);
     }
 
+    const frontendBaseUrl = process.env.CANDIDATE_PORTAL_URL || process.env.FRONTEND_CANDIDATE_URL || 'https://niva.greatcampus.in';
+    const assessmentSlug = updatedCandidate.assessment?.slug || updatedCandidate.assessmentId;
+    const examUrl = `${frontendBaseUrl}/${assessmentSlug}?token=${newSecureToken}`;
+
+    // Default reason descriptions
+    const reasonMap: Record<string, string> = {
+      DISQUALIFICATION_RECOVERY: 'Disqualification Recovery (3 Proctoring Warnings / Tab Switch)',
+      TECHNICAL_GLITCH: 'Technical / Network / Browser Interruption',
+      EXPIRED_WINDOW: 'Assessment Window Expired / Re-invite Request',
+      RETAKE_APPROVAL: 'Management / Vendor Retake Approval',
+      TESTING_VERIFICATION: 'Internal Testing & QA Verification',
+      OTHER: options?.reasonText || 'Custom Reason',
+    };
+
+    const reasonCode = options?.reasonCode || 'DISQUALIFICATION_RECOVERY';
+    const reasonText = options?.reasonText || reasonMap[reasonCode] || reasonCode;
+
+    // Record Audit Log Entry in CandidateResetLog
+    let resetLog = null;
+    try {
+      resetLog = await this.prisma.candidateResetLog.create({
+        data: {
+          candidateId: candidate.id,
+          vendorId: candidate.vendorId || null,
+          performedBy: options?.performedBy || 'ADMIN:System Administrator',
+          performedByRole: options?.performedByRole || 'ADMIN',
+          action: 'RESET_AND_RESEND',
+          reasonCode,
+          reasonText,
+          previousStatus: previousStatus || 'REGISTERED',
+          previousScore: previousScore !== null ? Number(previousScore) : null,
+          previousWarnings: previousWarnings !== null ? Number(previousWarnings) : null,
+          attemptNumber: currentAttemptNumber,
+          newSecureToken,
+          newExamUrl: examUrl,
+          emailDispatched: emailResult.success,
+        },
+      });
+    } catch (logErr: any) {
+      this.logger.error(`Could not record CandidateResetLog: ${logErr.message}`);
+    }
+
     return {
       success: true,
       message: emailResult.success
@@ -927,6 +986,107 @@ export class CandidatesService {
         : `Candidate exam session wiped and reset to Registered. Candidate can take the test now.`,
       emailDispatched: emailResult.success,
       candidate: updatedCandidate,
+      resetLog,
+      examUrl,
+    };
+  }
+
+  // Retrieve Master Reset & Re-attempt Audit Logs (Admin only)
+  async getCandidateResetAuditLogs(query: {
+    vendorId?: string;
+    candidateSearch?: string;
+    performedByRole?: string;
+    reasonCode?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.max(1, Math.min(500, Number(query.limit) || 25));
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (query.vendorId && query.vendorId !== 'ALL') {
+      where.vendorId = query.vendorId;
+    }
+
+    if (query.performedByRole && query.performedByRole !== 'ALL') {
+      where.performedByRole = query.performedByRole;
+    }
+
+    if (query.reasonCode && query.reasonCode !== 'ALL') {
+      where.reasonCode = query.reasonCode;
+    }
+
+    if (query.candidateSearch) {
+      const q = query.candidateSearch.trim();
+      where.candidate = {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { email: { contains: q, mode: 'insensitive' } },
+          { phone: { contains: q, mode: 'insensitive' } },
+          { applicationId: { contains: q, mode: 'insensitive' } },
+          { referenceId: { contains: q, mode: 'insensitive' } },
+        ],
+      };
+    }
+
+    const [total, logs] = await Promise.all([
+      this.prisma.candidateResetLog.count({ where }),
+      this.prisma.candidateResetLog.findMany({
+        where,
+        include: {
+          candidate: {
+            include: {
+              assessment: { select: { id: true, name: true, slug: true } },
+            },
+          },
+          vendor: { select: { id: true, name: true, vendorCode: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    return {
+      success: true,
+      data: logs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit) || 1,
+      },
+    };
+  }
+
+  // Get full lifecycle timeline for candidate details page
+  async getCandidateTimelineHistory(id: string) {
+    const candidate = await this.prisma.candidate.findUnique({
+      where: { id },
+      include: {
+        assessment: true,
+        vendor: true,
+        attempts: {
+          include: { proctoringLogs: true },
+          orderBy: { startedAt: 'desc' },
+        },
+        resetLogs: {
+          orderBy: { createdAt: 'desc' },
+          include: { vendor: true },
+        },
+        emailLogs: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!candidate) throw new NotFoundException('Candidate not found.');
+
+    return {
+      success: true,
+      data: candidate,
     };
   }
 

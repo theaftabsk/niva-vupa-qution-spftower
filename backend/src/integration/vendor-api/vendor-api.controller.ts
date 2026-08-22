@@ -119,6 +119,27 @@ export class ResetCandidateDto {
     description: 'Candidate Email address',
   })
   email?: string;
+
+  @ApiPropertyOptional({
+    example: 'DISQUALIFICATION_RECOVERY',
+    enum: [
+      'DISQUALIFICATION_RECOVERY',
+      'TECHNICAL_GLITCH',
+      'EXPIRED_WINDOW',
+      'RETAKE_APPROVAL',
+      'TESTING_VERIFICATION',
+      'OTHER',
+    ],
+    default: 'DISQUALIFICATION_RECOVERY',
+    description: 'Reason code for resetting candidate exam session',
+  })
+  reasonCode?: string;
+
+  @ApiPropertyOptional({
+    example: 'Proctoring warnings reset after candidate verification',
+    description: 'Optional custom description or notes',
+  })
+  reasonText?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

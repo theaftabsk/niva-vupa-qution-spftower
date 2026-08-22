@@ -645,6 +645,12 @@ export class VendorApiService {
       await this.prisma.examAttempt.deleteMany({ where: { id: { in: attemptIds } } });
     }
 
+    const previousAttempt = candidate.attempts[0] || null;
+    const previousStatus = previousAttempt ? previousAttempt.status : candidate.status;
+    const previousScore = previousAttempt ? previousAttempt.score : null;
+    const previousWarnings = previousAttempt ? previousAttempt.warningCount : null;
+    const currentAttemptNumber = candidate.totalAttemptsCount || (candidate.attempts.length > 0 ? candidate.attempts.length : 1);
+
     const newSecureToken = `sec_${crypto.randomBytes(16).toString('hex')}`;
     const updatedCandidate = await this.prisma.candidate.update({
       where: { id: candidate.id },
@@ -653,6 +659,7 @@ export class VendorApiService {
         emailStatus: 'PENDING',
         emailSentAt: null,
         secureToken: newSecureToken,
+        resetsCount: (candidate.resetsCount || 0) + 1,
       },
       include: { assessment: true },
     });
@@ -668,6 +675,42 @@ export class VendorApiService {
     const assessmentSlug = updatedCandidate.assessment?.slug || updatedCandidate.assessmentId;
     const examUrl = `${frontendBaseUrl}/${assessmentSlug}?token=${newSecureToken}`;
 
+    // Map reason code & record CandidateResetLog
+    const reasonMap: Record<string, string> = {
+      DISQUALIFICATION_RECOVERY: 'Disqualification Recovery (3 Proctoring Warnings / Tab Switch)',
+      TECHNICAL_GLITCH: 'Technical / Network / Browser Interruption',
+      EXPIRED_WINDOW: 'Assessment Window Expired / Re-invite Request',
+      RETAKE_APPROVAL: 'Management / Vendor Retake Approval',
+      TESTING_VERIFICATION: 'Internal Testing & QA Verification',
+      OTHER: body?.reasonText || 'Custom Reason',
+    };
+
+    const reasonCode = body?.reasonCode || 'DISQUALIFICATION_RECOVERY';
+    const reasonText = body?.reasonText || reasonMap[reasonCode] || reasonCode;
+
+    try {
+      await this.prisma.candidateResetLog.create({
+        data: {
+          candidateId: candidate.id,
+          vendorId: vendor.id,
+          performedBy: `VENDOR_API:${vendor.vendorCode} (${vendor.name})`,
+          performedByRole: 'VENDOR_API',
+          action: 'RESET_AND_RESEND',
+          reasonCode,
+          reasonText,
+          previousStatus: previousStatus || 'REGISTERED',
+          previousScore: previousScore !== null ? Number(previousScore) : null,
+          previousWarnings: previousWarnings !== null ? Number(previousWarnings) : null,
+          attemptNumber: currentAttemptNumber,
+          newSecureToken,
+          newExamUrl: examUrl,
+          emailDispatched,
+        },
+      });
+    } catch (logErr: any) {
+      this.logger.error(`Could not record CandidateResetLog from Vendor API: ${logErr.message}`);
+    }
+
     const responseData = {
       success: true,
       message: 'Candidate session successfully reset and fresh secure exam link generated.',
@@ -681,6 +724,8 @@ export class VendorApiService {
         examUrl,
         status: 'NOT_STARTED',
         emailDispatched,
+        reasonCode,
+        reasonText,
       },
     };
 

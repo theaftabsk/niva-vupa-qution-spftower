@@ -47,6 +47,7 @@ model Vendor {
   assignedAssessments VendorAssessment[]
   candidates          Candidate[]
   apiLogs             VendorApiLog[]
+  resetLogs           CandidateResetLog[]
   creditUsed          Int                @default(0) // Total exams launched under this vendor
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
@@ -124,6 +125,8 @@ model Candidate {
   emailStatus       String        @default("PENDING") // PENDING, SENT, DELIVERED, FAILED
   emailSentAt       DateTime?
   status            String        @default("REGISTERED") // REGISTERED, IN_PROGRESS, COMPLETED, DISQUALIFIED
+  totalAttemptsCount Int          @default(0) // Total exam attempts started
+  resetsCount       Int           @default(0) // Total times session was reset/resent
   isDeleted         Boolean       @default(false)
   deletedAt         DateTime?
   deletedByRole     String?       // "VENDOR" | "ADMIN"
@@ -132,6 +135,7 @@ model Candidate {
   deletedReason     String?
   attempts          ExamAttempt[]
   emailLogs         EmailLog[]
+  resetLogs         CandidateResetLog[]
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @default(now()) @updatedAt
 }
@@ -297,4 +301,26 @@ model VendorApiLog {
   itemsCount   Int       @default(0) // Candidates count or assessments count
   errorMessage String?
   createdAt    DateTime  @default(now())
+}
+
+// Audit log for every Candidate Exam Reset, Re-invite, and Session Recovery
+model CandidateResetLog {
+  id               String    @id @default(uuid())
+  candidateId      String
+  candidate        Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  vendorId         String?
+  vendor           Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  performedBy      String    // e.g. "ADMIN:Aftab Sk", "VENDOR_API:VND-1001", "SUPER_ADMIN"
+  performedByRole  String    // "ADMIN" | "VENDOR_API" | "SUPER_ADMIN"
+  action           String    @default("RESET_AND_RESEND") // "RESET_AND_RESEND", "ADMIN_RESET", "API_RESET", "UNLOCK"
+  reasonCode       String    @default("DISQUALIFICATION_RECOVERY") // Predefined Code
+  reasonText       String?   // Formatted description or custom note
+  previousStatus   String?   // "DISQUALIFIED", "COMPLETED", "IN_PROGRESS", "EXPIRED"
+  previousScore    Float?
+  previousWarnings Int?
+  attemptNumber    Int       @default(1)
+  newSecureToken   String
+  newExamUrl       String
+  emailDispatched  Boolean   @default(false)
+  createdAt        DateTime  @default(now())
 }
