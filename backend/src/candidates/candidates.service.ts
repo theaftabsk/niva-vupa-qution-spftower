@@ -401,6 +401,8 @@ export class CandidatesService {
       };
     }
 
+    const currentAttemptNum = (candidate.totalAttemptsCount || 0) + 1;
+
     // Check & Consume 1 Exam Credit (Duplicate Protected — Only consumed once per attempt)
     await this.creditsService.checkAndConsumeCredit({
       tenantId: candidate.assessment.tenantId,
@@ -410,6 +412,7 @@ export class CandidatesService {
       assessmentName: candidate.assessment.name,
       vendorId: candidate.vendorId,
       vendorName: candidate.vendor?.name,
+      attemptNumber: currentAttemptNum,
     });
 
     // Create a new attempt with configurable session minute snapshot
@@ -446,10 +449,13 @@ export class CandidatesService {
       })),
     });
 
-    // Update candidate status
+    // Update candidate status and increment totalAttemptsCount
     await this.prisma.candidate.update({
       where: { id: candidate.id },
-      data: { status: 'IN_PROGRESS' },
+      data: {
+        status: 'IN_PROGRESS',
+        totalAttemptsCount: { increment: 1 },
+      },
     });
 
     // Retrieve the created attempt with questions

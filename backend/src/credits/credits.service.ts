@@ -51,8 +51,9 @@ export class CreditsService {
     vendorId?: string | null;
     vendorName?: string | null;
     attemptId?: string;
+    attemptNumber?: number;
   }) {
-    const { tenantId, candidateId, candidateName, assessmentId, assessmentName, vendorId, vendorName, attemptId } = params;
+    const { tenantId, candidateId, candidateName, assessmentId, assessmentName, vendorId, vendorName, attemptId, attemptNumber } = params;
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Fetch Tenant & Validate Credit Balance
@@ -91,6 +92,7 @@ export class CreditsService {
       }
 
       const newRemaining = updatedTenant.creditLimit - updatedTenant.usedCredit;
+      const attemptLabel = attemptNumber && attemptNumber > 1 ? ` (Attempt #${attemptNumber})` : '';
 
       // 4. Record Audit Ledger in CreditHistory
       const history = await tx.creditHistory.create({
@@ -103,7 +105,7 @@ export class CreditsService {
           balanceAfter: newRemaining,
           candidateId,
           attemptId: attemptId || null,
-          description: `Exam Start: ${candidateName} — ${assessmentName}${vendorName ? ` (Vendor: ${vendorName})` : ''}`,
+          description: `Exam Start${attemptLabel}: ${candidateName} — ${assessmentName}${vendorName ? ` (Vendor: ${vendorName})` : ''}`,
           adminName: 'System Engine',
         },
       });
