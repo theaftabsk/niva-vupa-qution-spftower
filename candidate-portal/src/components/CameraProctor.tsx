@@ -21,8 +21,8 @@ export default function CameraProctor({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectionLoopRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const scheduledTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastWarningTimeRef = useRef<number>(0);
+  const totalShotsTakenRef = useRef<number>(0); // Strictly max 3 screenshots per exam
 
   const [cameraActive, setCameraActive] = useState(false);
   const [faceStatus, setFaceStatus] = useState<"FACE_OK" | "NO_FACE" | "MULTIPLE_FACES" | "CAMERA_OFF">("CAMERA_OFF");
@@ -35,12 +35,16 @@ export default function CameraProctor({
   useEffect(() => { onVerificationRef.current = onVerificationChange; });
   useEffect(() => { onWarningRef.current = onWarningTrigger; });
 
-  const SCHEDULED_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes interval
   const WARNING_COOLDOWN_MS = 30000; // 30 seconds cooldown between warnings (minimal disruption)
 
-  // ── Helper: Upload screenshot ──────────────────────────────────────────
+  // ── Helper: Upload screenshot (Strictly Max 3 Screenshots Total) ─────────
   const uploadScreenshot = useCallback(async (type: "SCHEDULED" | "WARNING", eventType?: string) => {
     if (!attemptId || !videoRef.current || !cameraActive) return;
+    if (totalShotsTakenRef.current >= 3) {
+      console.log("📸 Maximum 3 screenshots limit reached for this session.");
+      return;
+    }
+
     try {
       const video = videoRef.current;
       if (video.videoWidth === 0 || video.videoHeight === 0) return;
@@ -52,6 +56,10 @@ export default function CameraProctor({
       ctx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
       const dataUrl = offCanvas.toDataURL("image/jpeg", 0.65);
 
+      totalShotsTakenRef.current += 1;
+      const currentShotNumber = totalShotsTakenRef.current;
+      console.log(`📸 Successfully uploading screenshot [${currentShotNumber}/3] (${eventType})...`);
+
       const baseUrl = getApiBaseUrl();
       await fetch(`${baseUrl}/api/v1/proctoring/upload-screenshot`, {
         method: "POST",
@@ -61,7 +69,7 @@ export default function CameraProctor({
           screenshotDataUrl: dataUrl,
           imageBase64: dataUrl,
           type,
-          eventType: eventType || "ROUTINE",
+          eventType: eventType || `SHOT_${currentShotNumber}`,
         }),
       });
     } catch (e) {
@@ -77,7 +85,6 @@ export default function CameraProctor({
     let isMounted = true;
     async function loadModels() {
       try {
-        // Dynamically import face-api.js only on client side
         const faceapi = await import("face-api.js");
         await faceapi.nets.tinyFaceDetector.loadFromUri("/models");
         if (isMounted) {
@@ -87,7 +94,6 @@ export default function CameraProctor({
       } catch (err) {
         if (isMounted) {
           console.error("Failed to load face-api models:", err);
-          // Fallback: allow exam even if model fails to load
           setModelsLoaded(true);
         }
       }
@@ -129,13 +135,12 @@ export default function CameraProctor({
   const noFaceStreakRef = useRef<number>(0);
   const multiFaceStreakRef = useRef<number>(0);
 
-  // ── Face detection loop (face-api.js TinyFaceDetector - Forgiving / Lenient Mode) ─
+  // ── Face detection loop (face-api.js TinyFaceDetector - Forgiving Mode) ─
   useEffect(() => {
     if (!cameraActive || !modelsLoaded) return;
 
     async function runDetection() {
       const faceapi = await import("face-api.js");
-      // Lenient Threshold: scoreThreshold 0.20 (handles dim light, glasses, slight tilts gracefully)
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.20 });
 
       detectionLoopRef.current = setInterval(async () => {
@@ -150,7 +155,7 @@ export default function CameraProctor({
             noFaceStreakRef.current += 1;
             multiFaceStreakRef.current = 0;
 
-            // Require 10 consecutive failed checks (10 full seconds of complete absence) before triggering NO_FACE alert
+            // 10 seconds continuous absence triggers UI warning
             if (noFaceStreakRef.current >= 10) {
               setFaceStatus("NO_FACE");
               if (onVerificationRef.current) onVerificationRef.current(false, "No face detected in camera.");
@@ -161,7 +166,6 @@ export default function CameraProctor({
                 if (onWarningRef.current) {
                   onWarningRef.current("FACE_NOT_DETECTED", "⚠️ Face not detected for 10+ seconds. Please stay in front of the camera.");
                 }
-                uploadScreenshotRef.current("WARNING", "FACE_NOT_DETECTED");
               }
             }
 
@@ -169,7 +173,7 @@ export default function CameraProctor({
             multiFaceStreakRef.current += 1;
             noFaceStreakRef.current = 0;
 
-            // Require 6 consecutive checks (6 seconds) of multiple faces before triggering MULTIPLE_FACES alert
+            // 6 seconds of multiple faces triggers UI warning
             if (multiFaceStreakRef.current >= 6) {
               setFaceStatus("MULTIPLE_FACES");
               if (onVerificationRef.current) onVerificationRef.current(false, "Multiple faces detected.");
@@ -180,7 +184,6 @@ export default function CameraProctor({
                 if (onWarningRef.current) {
                   onWarningRef.current("MULTIPLE_FACES", "⚠️ Multiple faces detected! Only the candidate should be in front of the camera.");
                 }
-                uploadScreenshotRef.current("WARNING", "MULTIPLE_FACES");
               }
             }
 
@@ -204,42 +207,39 @@ export default function CameraProctor({
     };
   }, [cameraActive, modelsLoaded]);
 
-  // ── Scheduled & Event-driven screenshot triggers ──────────────────────────
+  // ── Scheduled 15-Minute 3-Screenshot Engine ──────────────────────────
+  // Photo 1: Initial Baseline at ~3 seconds (Start of Exam)
+  // Photo 2: At 15 minutes (15:00)
+  // Photo 3: At 30 minutes (30:00)
+  // Strictly 3 photos total in the entire 45-minute exam!
   useEffect(() => {
     if (mode !== "exam" || !attemptId || !cameraActive) return;
 
-    // Take initial baseline verification screenshot 2.5 seconds after camera start
-    const initialCaptureTimer = setTimeout(() => {
-      console.log("📸 Capturing initial baseline proctoring screenshot...");
-      uploadScreenshotRef.current("SCHEDULED", "EXAM_START_BASELINE");
-    }, 2500);
+    // Shot 1: Initial Baseline (3s after start)
+    const shot1Timer = setTimeout(() => {
+      if (totalShotsTakenRef.current < 3) {
+        uploadScreenshotRef.current("SCHEDULED", "EXAM_START_BASELINE");
+      }
+    }, 3000);
 
-    // Take a secondary verification snapshot at 10 seconds
-    const secondaryCaptureTimer = setTimeout(() => {
-      console.log("📸 Capturing secondary baseline proctoring screenshot...");
-      uploadScreenshotRef.current("SCHEDULED", "INITIAL_VERIFICATION");
-    }, 10000);
+    // Shot 2: 15-minute mark (15 * 60 * 1000 ms)
+    const shot2Timer = setTimeout(() => {
+      if (totalShotsTakenRef.current < 3) {
+        uploadScreenshotRef.current("SCHEDULED", "PERIODIC_15_MIN");
+      }
+    }, 15 * 60 * 1000);
 
-    // Recurring 10-minute interval screenshot capture
-    scheduledTimerRef.current = setInterval(() => {
-      console.log("📸 Scheduled 10-min proctoring screenshot capture...");
-      uploadScreenshotRef.current("SCHEDULED", "PERIODIC_CHECK");
-    }, 10 * 60 * 1000);
-
-    // Listen for violation events from test page (e.g. TAB_SWITCH, FULLSCREEN_EXIT)
-    const onViolationEvent = (e: any) => {
-      const eventType = e?.detail?.eventType || "VIOLATION_SNAP";
-      console.log(`📸 Capturing instant violation screenshot for [${eventType}]...`);
-      uploadScreenshotRef.current("WARNING", eventType);
-    };
-
-    window.addEventListener("proctoring-violation-snapshot", onViolationEvent);
+    // Shot 3: 30-minute mark (30 * 60 * 1000 ms)
+    const shot3Timer = setTimeout(() => {
+      if (totalShotsTakenRef.current < 3) {
+        uploadScreenshotRef.current("SCHEDULED", "PERIODIC_30_MIN");
+      }
+    }, 30 * 60 * 1000);
 
     return () => {
-      clearTimeout(initialCaptureTimer);
-      clearTimeout(secondaryCaptureTimer);
-      if (scheduledTimerRef.current) clearInterval(scheduledTimerRef.current);
-      window.removeEventListener("proctoring-violation-snapshot", onViolationEvent);
+      clearTimeout(shot1Timer);
+      clearTimeout(shot2Timer);
+      clearTimeout(shot3Timer);
     };
   }, [mode, attemptId, cameraActive]);
 
@@ -252,13 +252,12 @@ export default function CameraProctor({
     faceStatus === "FACE_OK" ? "rgba(22,101,52,0.92)" :
     faceStatus === "MULTIPLE_FACES" ? "rgba(146,64,14,0.92)" : "rgba(185,28,28,0.92)";
 
-
   return (
     <>
       {/* Hidden canvas for screenshot capture */}
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {/* PIP Camera Badge (Responsive with class nb-camera-pip) */}
+      {/* PIP Camera Badge */}
       <div
         className={`nb-camera-pip ${isMinimized ? "minimized" : ""}`}
         style={{
@@ -267,67 +266,60 @@ export default function CameraProctor({
         }}
       >
         {!isMinimized && (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="nb-camera-video"
-              style={{ transform: "scaleX(-1)", display: "block" }}
-            />
-
-            {/* Model loading spinner overlay */}
-            {!modelsLoaded && (
-              <div style={{
-                position: "absolute", inset: 0, background: "rgba(15,23,42,0.85)",
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "6px"
-              }}>
-                <div style={{
-                  width: "22px", height: "22px", border: "3px solid #334155",
-                  borderTopColor: "#38BDF8", borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite"
-                }} />
-                <span style={{ color: "#94A3B8", fontSize: "9px", fontWeight: 700 }}>Loading AI...</span>
-              </div>
+          <div
+            className="nb-camera-status-banner"
+            style={{
+              backgroundColor: bannerBg,
+              transition: "background-color 0.3s ease",
+            }}
+          >
+            {faceStatus === "FACE_OK" && (
+              <>
+                <CheckCircle2 size={12} className="text-white shrink-0" />
+                <span className="text-white font-semibold">Face Verified</span>
+              </>
             )}
-          </>
-        )}
-
-        {/* Status Banner & Minimize Toggle */}
-        <div style={{
-          background: bannerBg, color: "white",
-          padding: "4px 8px", fontSize: "10px", fontWeight: 800,
-          textAlign: "center", display: "flex", alignItems: "center",
-          justifyContent: "space-between", gap: "4px",
-          transition: "background 0.25s",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "4px", flex: 1, justifyContent: "center" }}>
-            {faceStatus === "FACE_OK" ? (
-              <><CheckCircle2 size={11} color="#4ADE80" /> Live</>
-            ) : faceStatus === "MULTIPLE_FACES" ? (
-              <><AlertTriangle size={11} color="#FCD34D" /> Multiple</>
-            ) : (
-              <><ShieldAlert size={11} color="#FCA5A5" /> Alert</>
+            {faceStatus === "MULTIPLE_FACES" && (
+              <>
+                <ShieldAlert size={12} className="text-white shrink-0 animate-bounce" />
+                <span className="text-white font-semibold">Multiple Faces</span>
+              </>
+            )}
+            {faceStatus === "NO_FACE" && (
+              <>
+                <AlertTriangle size={12} className="text-white shrink-0 animate-pulse" />
+                <span className="text-white font-semibold">No Face</span>
+              </>
+            )}
+            {faceStatus === "CAMERA_OFF" && (
+              <>
+                <Video size={12} className="text-white shrink-0" />
+                <span className="text-white font-semibold">Connecting...</span>
+              </>
             )}
           </div>
+        )}
+
+        {/* Video feed */}
+        <div className="relative w-full h-full bg-slate-950 overflow-hidden">
+          <video
+            ref={videoRef}
+            playsInline
+            muted
+            autoPlay
+            className="w-full h-full object-cover mirror-mode"
+          />
+
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMinimized(!isMinimized);
-            }}
+            onClick={() => setIsMinimized((prev) => !prev)}
+            className="nb-camera-minimize-btn"
             title={isMinimized ? "Expand Camera" : "Minimize Camera"}
-            style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "4px", padding: "2px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             {isMinimized ? <Maximize2 size={10} /> : <Minimize2 size={10} />}
           </button>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
     </>
   );
 }

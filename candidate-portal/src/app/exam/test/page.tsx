@@ -138,11 +138,6 @@ export default function CandidateTestEngine() {
     }
     lastViolationTimeRef.current = now;
 
-    // Trigger instant violation camera capture
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("proctoring-violation-snapshot", { detail: { eventType } }));
-    }
-
     try {
       const baseUrl = getApiBaseUrl();
       const res = await fetch(`${baseUrl}/api/v1/candidates/log-proctoring`, {
