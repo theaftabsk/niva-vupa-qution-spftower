@@ -19,6 +19,8 @@ import {
   Briefcase,
   Archive,
   Terminal,
+  RotateCcw,
+  Coins,
 } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -126,9 +128,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           icon: Terminal,
         },
         {
+          href: "/admin/candidate-logs",
+          label: "Candidate Lifecycle Logs",
+          icon: RotateCcw,
+        },
+        {
           href: "/admin/logs",
-          label: "Exam & Credit Logs",
-          icon: Activity,
+          label: "Exam Credits History",
+          icon: Coins,
         },
         {
           href: "/admin/emails",
