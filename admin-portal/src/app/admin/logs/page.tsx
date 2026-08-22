@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   Layers,
 } from "lucide-react";
+import { getApiBaseUrl } from "@/lib/config";
 
 export default function ExamActivityLogsPage() {
   const [activeTab, setActiveTab] = useState<"RESETS" | "CREDITS">("RESETS");
@@ -52,15 +53,11 @@ export default function ExamActivityLogsPage() {
   const [creditTotalRecords, setCreditTotalRecords] = useState(0);
   const [quotaData, setQuotaData] = useState<any>(null);
 
-  const getApiUrl = () => {
-    return process.env.NEXT_PUBLIC_API_URL || "https://api.niva.greatcampus.in";
-  };
-
   // Fetch Candidate Reset Logs
   const fetchResetLogs = async () => {
     setResetLoading(true);
     try {
-      const apiUrl = getApiUrl();
+      const apiUrl = getApiBaseUrl();
       const params = new URLSearchParams({
         page: resetPage.toString(),
         limit: resetPageSize.toString(),
@@ -90,7 +87,7 @@ export default function ExamActivityLogsPage() {
   const fetchCreditLogs = async () => {
     setCreditLoading(true);
     try {
-      const apiUrl = getApiUrl();
+      const apiUrl = getApiBaseUrl();
       const params = new URLSearchParams({
         page: creditPage.toString(),
         limit: creditPageSize.toString(),
@@ -506,13 +503,13 @@ export default function ExamActivityLogsPage() {
       {activeTab === "CREDITS" && (
         <div className="space-y-6">
           {/* Credit KPI Overview Bar */}
-          {quotaData && quotaData.credit && (
+          {quotaData && (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
                 <div>
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Allocated Limit</span>
                   <strong className="text-2xl font-black text-slate-900 font-mono mt-0.5 block">
-                    {quotaData.credit.creditLimit.toLocaleString()}
+                    {Number(quotaData?.credit?.creditLimit ?? quotaData?.tenant?.creditLimit ?? 0).toLocaleString()}
                   </strong>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
@@ -524,7 +521,7 @@ export default function ExamActivityLogsPage() {
                 <div>
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Total Used</span>
                   <strong className="text-2xl font-black text-rose-600 font-mono mt-0.5 block">
-                    {quotaData.credit.creditUsed.toLocaleString()}
+                    {Number(quotaData?.credit?.usedCredit ?? quotaData?.tenant?.usedCredit ?? 0).toLocaleString()}
                   </strong>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600">
@@ -536,7 +533,11 @@ export default function ExamActivityLogsPage() {
                 <div>
                   <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Remaining Balance</span>
                   <strong className="text-2xl font-black text-emerald-600 font-mono mt-0.5 block">
-                    {quotaData.remainingCredit.toLocaleString()}
+                    {Number(
+                      quotaData?.credit?.remainingCredit ??
+                      quotaData?.remainingCredit ??
+                      Math.max(0, (quotaData?.credit?.creditLimit ?? 0) - (quotaData?.credit?.usedCredit ?? 0))
+                    ).toLocaleString()}
                   </strong>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
