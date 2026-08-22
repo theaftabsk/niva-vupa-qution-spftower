@@ -43,6 +43,7 @@ export default function CameraProctor({
     if (!attemptId || !videoRef.current || !cameraActive) return;
     try {
       const video = videoRef.current;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
       const offCanvas = document.createElement("canvas");
       offCanvas.width = video.videoWidth || 640;
       offCanvas.height = video.videoHeight || 480;
@@ -52,18 +53,19 @@ export default function CameraProctor({
       const dataUrl = offCanvas.toDataURL("image/jpeg", 0.65);
 
       const baseUrl = getApiBaseUrl();
-      await fetch(`${baseUrl}/api/v1/candidates/proctoring/upload-screenshot`, {
+      await fetch(`${baseUrl}/api/v1/proctoring/upload-screenshot`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attemptId,
           screenshotDataUrl: dataUrl,
+          imageBase64: dataUrl,
           type,
           eventType: eventType || "ROUTINE",
         }),
       });
-    } catch {
-      // non-critical — ignore network error on screenshot upload
+    } catch (e) {
+      console.warn("Could not upload proctoring screenshot:", e);
     }
   }, [attemptId, cameraActive]);
 
@@ -202,25 +204,42 @@ export default function CameraProctor({
     };
   }, [cameraActive, modelsLoaded]);
 
-  // ── Scheduled 20-minute screenshot (Initial baseline at 3s + every 20 mins) ──
+  // ── Scheduled & Event-driven screenshot triggers ──────────────────────────
   useEffect(() => {
     if (mode !== "exam" || !attemptId || !cameraActive) return;
 
-    // Take initial baseline verification screenshot 3 seconds after camera start
+    // Take initial baseline verification screenshot 2.5 seconds after camera start
     const initialCaptureTimer = setTimeout(() => {
       console.log("📸 Capturing initial baseline proctoring screenshot...");
       uploadScreenshotRef.current("SCHEDULED", "EXAM_START_BASELINE");
-    }, 3000);
+    }, 2500);
 
-    // Recurring 20-minute interval screenshot capture
+    // Take a secondary verification snapshot at 10 seconds
+    const secondaryCaptureTimer = setTimeout(() => {
+      console.log("📸 Capturing secondary baseline proctoring screenshot...");
+      uploadScreenshotRef.current("SCHEDULED", "INITIAL_VERIFICATION");
+    }, 10000);
+
+    // Recurring 10-minute interval screenshot capture
     scheduledTimerRef.current = setInterval(() => {
-      console.log("📸 Scheduled 20-min proctoring screenshot capture...");
-      uploadScreenshotRef.current("SCHEDULED", "PERIODIC_20_MIN");
-    }, SCHEDULED_INTERVAL_MS);
+      console.log("📸 Scheduled 10-min proctoring screenshot capture...");
+      uploadScreenshotRef.current("SCHEDULED", "PERIODIC_CHECK");
+    }, 10 * 60 * 1000);
+
+    // Listen for violation events from test page (e.g. TAB_SWITCH, FULLSCREEN_EXIT)
+    const onViolationEvent = (e: any) => {
+      const eventType = e?.detail?.eventType || "VIOLATION_SNAP";
+      console.log(`📸 Capturing instant violation screenshot for [${eventType}]...`);
+      uploadScreenshotRef.current("WARNING", eventType);
+    };
+
+    window.addEventListener("proctoring-violation-snapshot", onViolationEvent);
 
     return () => {
       clearTimeout(initialCaptureTimer);
+      clearTimeout(secondaryCaptureTimer);
       if (scheduledTimerRef.current) clearInterval(scheduledTimerRef.current);
+      window.removeEventListener("proctoring-violation-snapshot", onViolationEvent);
     };
   }, [mode, attemptId, cameraActive]);
 

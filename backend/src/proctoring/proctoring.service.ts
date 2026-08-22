@@ -37,6 +37,11 @@ export class ProctoringService {
       const base64Data = data.imageBase64.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
 
+      // Ensure upload directory exists
+      if (!fs.existsSync(this.uploadDir)) {
+        fs.mkdirSync(this.uploadDir, { recursive: true });
+      }
+
       const filename = `ss-${data.type.toLowerCase()}-${data.attemptId.slice(0, 8)}-${Date.now()}.jpg`;
       const filePath = path.join(this.uploadDir, filename);
 

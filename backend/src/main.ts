@@ -19,14 +19,27 @@ async function bootstrap() {
     }),
   );
 
-  // Ensure uploads/recordings directory exists
-  const uploadDir = join(process.cwd(), 'uploads', 'recordings');
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
+  // Ensure uploads directories exist
+  const recordingsDir = join(process.cwd(), 'uploads', 'recordings');
+  if (!fs.existsSync(recordingsDir)) {
+    fs.mkdirSync(recordingsDir, { recursive: true });
   }
 
-  // Serve static audio files
-  app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
+  const screenshotsDir = join(process.cwd(), 'uploads', 'screenshots');
+  if (!fs.existsSync(screenshotsDir)) {
+    fs.mkdirSync(screenshotsDir, { recursive: true });
+  }
+
+  // Serve static uploaded files with cross-origin headers
+  app.use(
+    '/uploads',
+    (req: any, res: any, next: any) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      next();
+    },
+    express.static(join(process.cwd(), 'uploads')),
+  );
 
   // Increase payload limit to 50MB to support long audio voice uploads
   app.use(json({ limit: '50mb' }));
